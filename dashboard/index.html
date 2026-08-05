@@ -243,7 +243,7 @@
           <div id="socPlot" class="plot"></div>
         </div>
         <div class="chart-panel panel">
-          <div class="chart-title"><h2>Lookup parameters along uploaded profile</h2><span class="chip" id="paramChip">R0</span></div>
+          <div class="chart-title"><h2>SOC-domain LUT passport curves</h2><span class="chip" id="paramChip">R0</span></div>
           <div id="paramPlot" class="plot"></div>
         </div>
       </section>
@@ -585,35 +585,35 @@
     renderParamPlot();
   }
 
-  function paramSeriesForSelection(r, sel) {
-    const p = r.params;
-    const th = r.t.map(x => x/3600);
-    let charge, discharge, ylabel, title;
-    if (sel === 'R0') { charge=p.R0c.map(v=>v*1000); discharge=p.R0d.map(v=>v*1000); ylabel='R0 [mΩ]'; title='R0 charge/discharge along SOC path'; }
-    if (sel === 'R1') { charge=p.R1c.map(v=>v*1000); discharge=p.R1d.map(v=>v*1000); ylabel='R1 [mΩ]'; title='R1 charge/discharge along SOC path'; }
-    if (sel === 'R2') { charge=p.R2c.map(v=>v*1000); discharge=p.R2d.map(v=>v*1000); ylabel='R2 [mΩ]'; title='R2 charge/discharge along SOC path'; }
-    if (sel === 'tau1') { charge=p.tau1c; discharge=p.tau1d; ylabel='Tau1 [s]'; title='Tau1 charge/discharge along SOC path'; }
-    if (sel === 'tau2') { charge=p.tau2c; discharge=p.tau2d; ylabel='Tau2 [s]'; title='Tau2 charge/discharge along SOC path'; }
-    if (sel === 'C1') { charge=p.C1c; discharge=p.C1d; ylabel='C1 [F]'; title='C1 charge/discharge along SOC path'; }
-    if (sel === 'C2') { charge=p.C2c; discharge=p.C2d; ylabel='C2 [F]'; title='C2 charge/discharge along SOC path'; }
-    if (sel === 'OCV') { charge=p.OCVc; discharge=p.OCVd; ylabel='OCV [V]'; title='OCV branch values along SOC path'; }
-    const step = Math.max(1, Math.ceil(th.length / MAX_PLOT_POINTS));
-    const x=[], yc=[], yd=[];
-    for (let i=0; i<th.length; i+=step) { x.push(th[i]); yc.push(charge[i]); yd.push(discharge[i]); }
-    if (x[x.length-1] !== th[th.length-1]) { const i=th.length-1; x.push(th[i]); yc.push(charge[i]); yd.push(discharge[i]); }
-    return { x, yc, yd, ylabel, title };
+  function paramSeriesForSelection(sel) {
+    if (!state.chargeLut || !state.dischargeLut) return null;
+    const field = { OCV:'OCV_V', R0:'R0_ohm', R1:'R1_ohm', R2:'R2_ohm', tau1:'tau1_s', tau2:'tau2_s', C1:'C1_F', C2:'C2_F' }[sel];
+    const units = { OCV:'[V]', R0:'[mΩ]', R1:'[mΩ]', R2:'[mΩ]', tau1:'[s]', tau2:'[s]', C1:'[F]', C2:'[F]' }[sel];
+    const scale = ['R0','R1','R2'].includes(sel) ? 1000 : 1;
+    const Tq = state.result?.Tq ?? (Number($('manualTemp').value) || 25);
+    const chargeLookup = makeLutLookup(state.chargeLut, Tq);
+    const dischargeLookup = makeLutLookup(state.dischargeLut, Tq);
+    const x = state.chargeLut.socGrid.map(s => s * 100);
+    return {
+      x,
+      yc: x.map(s => chargeLookup(field, s / 100) * scale),
+      yd: x.map(s => dischargeLookup(field, s / 100) * scale),
+      ylabel: `${sel} ${units}`,
+      title: `${sel} charge/discharge LUT at ${Tq.toFixed(1)} °C`
+    };
   }
 
   function renderParamPlot() {
-    const r = state.result;
-    if (!r || !window.Plotly) return;
-    const sel = $('paramSelect').value;
-    const s = paramSeriesForSelection(r, sel);
-    $('paramChip').textContent = sel;
+    if (!window.Plotly) return;
+    const s = paramSeriesForSelection($('paramSelect').value);
+    if (!s) return;
+    $('paramChip').textContent = `${$('paramSelect').value} · ${state.result?.Tq?.toFixed(1) ?? $('manualTemp').value} °C`;
+    const layout = plotlyLayout(s.title, s.ylabel);
+    layout.xaxis.title = 'SOC [%]';
     Plotly.react('paramPlot', [
-      { x:s.x, y:s.yc, type:'scattergl', mode:'lines', name:'Charge LUT', line:{ color:'#fb7185', width:1.2 } },
-      { x:s.x, y:s.yd, type:'scattergl', mode:'lines', name:'Discharge LUT', line:{ color:'#60a5fa', width:1.2 } }
-    ], plotlyLayout(s.title, s.ylabel), { responsive:true, displaylogo:false });
+      { x:s.x, y:s.yc, type:'scattergl', mode:'lines', name:'Charge LUT', line:{ color:'#fb7185', width:1.5 } },
+      { x:s.x, y:s.yd, type:'scattergl', mode:'lines', name:'Discharge LUT', line:{ color:'#60a5fa', width:1.5 } }
+    ], layout, { responsive:true, displaylogo:false });
   }
 
   function renderKPIs(r) {
@@ -684,6 +684,7 @@
       state.capacity = parseCapacity(q);
       const t = state.chargeLut.temps.join(', ');
       status.innerHTML = `<strong>Model LUTs loaded.</strong> Available temperature breakpoints: ${t} °C. Upload a cycler CSV or load the bundled demo.`;
+      renderParamPlot();
     } catch (err) {
       showError(`Model load failed: ${err.message || err}`);
       status.textContent = 'Model LUT load failed.';
@@ -711,6 +712,7 @@
     if (state.inputText) processText(state.inputText, state.inputName || 'uploaded CSV');
   }));
   $('paramSelect').addEventListener('change', renderParamPlot);
+  $('manualTemp').addEventListener('input', renderParamPlot);
   $('sampleSlider').addEventListener('input', ev => renderReadout(ev.target.value));
 
   loadModel();
