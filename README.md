@@ -31,8 +31,8 @@ SHP320_2RC_2D/
 A static Cell Passport / Digital Twin dashboard is available in `dashboard/`.
 It loads the generated dual-LUT model from `results/`, accepts an uploaded
 cycler CSV, replays it through the time-domain 2-RC ECM, and plots measured vs
-simulated voltage, residuals, SOC, and the corresponding charge/discharge LUT
-parameters.
+simulated voltage, residuals, SOC, parameters along the uploaded profile,
+and dedicated SOC-domain Cell Passport LUT curves.
 
 Run it from the repository root with:
 
@@ -41,6 +41,24 @@ python3 -m http.server 8080 --bind 0.0.0.0
 ```
 
 Then open `http://localhost:8080/dashboard/`.
+
+### GitHub Pages hosting
+
+The dashboard is ready to host from the repository root with GitHub Pages:
+`index.html` redirects to `dashboard/`, and the dashboard reads the required
+CSV artifacts from `results/` plus the bundled 25 °C HPPC demo from `data/`.
+
+After this branch is merged, enable Pages in the repository settings with:
+
+- Source: **Deploy from a branch**
+- Branch: `main`
+- Folder: `/ (root)`
+
+The dashboard will then be available at:
+
+```text
+https://ahmedsamy207.github.io/Battery_Modeling/
+```
 
 ## How to run
 

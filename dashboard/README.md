@@ -39,6 +39,7 @@ Current sign convention follows the MATLAB project: `I > 0` is charge and `I < 0
 - voltage residual and error metrics
 - estimated SOC trajectory
 - charge/discharge values of OCV, R0, R1, R2, Tau1, Tau2, C1, and C2 evaluated along the uploaded profile
+- dedicated Cell Passport LUT Curves showing OCV/ECM parameters versus SOC at a selected temperature
 - sample-level readout controlled by a slider
 
 The default SOC mode is the same HPPC/full-charge anchor used in the MATLAB validation scripts. For arbitrary drive cycles, switch to user initial SOC mode.
