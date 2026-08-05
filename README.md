@@ -26,6 +26,22 @@ SHP320_2RC_2D/
 └── results/                                ← all outputs are written here
 ```
 
+## Browser dashboard
+
+A static Cell Passport / Digital Twin dashboard is available in `dashboard/`.
+It loads the generated dual-LUT model from `results/`, accepts an uploaded
+cycler CSV, replays it through the time-domain 2-RC ECM, and plots measured vs
+simulated voltage, residuals, SOC, and the corresponding charge/discharge LUT
+parameters.
+
+Run it from the repository root with:
+
+```bash
+python3 -m http.server 8080 --bind 0.0.0.0
+```
+
+Then open `http://localhost:8080/dashboard/`.
+
 ## How to run
 
 1. Put the four characterization CSVs of each temperature into `data/`,
