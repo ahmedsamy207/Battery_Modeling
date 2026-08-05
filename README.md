@@ -15,7 +15,13 @@ SHP320_2RC_2D/
 │   ├── step2_Extract_Perfect_2RC_2D.m      ← 2-D averaged LUT  (chg+dis mean)
 │   ├── step2_Extract_Perfect_2RC_DualLUT_2D.m ← 2-D charge & discharge LUTs
 │   ├── step3_Validation_2D.m               ← validates averaged LUT per T
-│   └── step3_Validation_2D_DualLUT.m       ← validates dual LUTs per T
+│   ├── step3_Validation_2D_DualLUT.m       ← validates dual LUTs per T
+│   ├── step4_Build_SimscapeModel.m         ← Simscape cell block (dual LUT + 1-state hysteresis)
+│   ├── step4_Validate.m                    ← validates dual LUTs for the cell block
+│   ├── step5_BuildPackParams.m             ← Scale to 192S4P pack
+│   ├── step5_Validate.m                    ← validates the pack
+│   ├── Capacity_OCV_Validate.m             ← Capacity/OCV replay on cell model
+│   └── Aircraft_Mission.m                  ← NASA X-57 / eVTOL mission on pack   
 ├── tools/verify_pipeline_python.py         ← numerical mirror used for testing
 └── results/                                ← all outputs are written here
 ```
