@@ -31,8 +31,8 @@ SHP320_2RC_2D/
 A static Cell Passport / Digital Twin dashboard is available in `dashboard/`.
 It loads the generated dual-LUT model from `results/`, accepts an uploaded
 cycler CSV, replays it through the time-domain 2-RC ECM, and plots measured vs
-simulated voltage, residuals, SOC, and the corresponding charge/discharge LUT
-parameters.
+simulated voltage, residuals, SOC, parameters along the uploaded profile,
+and dedicated SOC-domain Cell Passport LUT curves.
 
 Run it from the repository root with:
 

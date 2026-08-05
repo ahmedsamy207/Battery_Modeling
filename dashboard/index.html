@@ -97,7 +97,7 @@
     .chip { padding:7px 10px; border:1px solid rgba(56,189,248,.24); background: var(--chip); color:#bae6fd; border-radius:999px; font-size:12px; font-weight:800; }
 
     .controls { padding: 18px; margin-bottom: 20px; }
-    .controls-grid { display: grid; grid-template-columns: 1.35fr repeat(4, minmax(150px, 0.55fr)); gap: 14px; align-items: end; }
+    .controls-grid { display: grid; grid-template-columns: 1.35fr repeat(3, minmax(150px, 0.55fr)); gap: 14px; align-items: end; }
     .control label { display:block; color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 7px; }
     select, input[type="number"], input[type="range"] {
       width: 100%; border-radius: 12px; border:1px solid var(--border); background: rgba(2, 6, 23, .65);
@@ -119,9 +119,32 @@
     .chart-panel { padding: 14px; margin-bottom: 20px; }
     .chart-title { display:flex; justify-content:space-between; align-items:center; gap:12px; padding: 4px 6px 10px; }
     .chart-title h2 { margin:0; font-size: 18px; }
+    .chart-desc { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
     .plot { width:100%; height: 420px; }
-    #paramPlot { height: 360px; }
+    #paramPlot, #lutCurvePlot { height: 360px; }
     #socPlot, #residualPlot { height: 300px; }
+    .curve-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      justify-content: flex-end;
+    }
+    .curve-control {
+      min-width: 150px;
+    }
+    .curve-control label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+    .curve-control select,
+    .curve-control input {
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
     .readout { padding: 18px; position: sticky; top: 18px; }
     .readout h2 { margin: 0 0 12px; font-size: 20px; }
     .slider-row { margin: 16px 0; }
@@ -208,19 +231,6 @@
           <label>Manual temperature [°C]</label>
           <input id="manualTemp" type="number" min="-40" max="80" step="0.1" value="25" />
         </div>
-        <div class="control">
-          <label>Parameter plot</label>
-          <select id="paramSelect">
-            <option value="R0">R0 charge/discharge</option>
-            <option value="R1">R1 charge/discharge</option>
-            <option value="R2">R2 charge/discharge</option>
-            <option value="tau1">Tau1 charge/discharge</option>
-            <option value="tau2">Tau2 charge/discharge</option>
-            <option value="C1">C1 charge/discharge</option>
-            <option value="C2">C2 charge/discharge</option>
-            <option value="OCV">OCV charge/discharge</option>
-          </select>
-        </div>
       </div>
       <div id="status" class="status">Loading model LUTs from <code>results/</code>…</div>
       <div id="errorBox" class="error"></div>
@@ -243,8 +253,58 @@
           <div id="socPlot" class="plot"></div>
         </div>
         <div class="chart-panel panel">
-          <div class="chart-title"><h2>Lookup parameters along uploaded profile</h2><span class="chip" id="paramChip">R0</span></div>
+          <div class="chart-title">
+            <div>
+              <h2>Lookup parameters along uploaded profile</h2>
+              <p class="chart-desc">Replay view: selected charge/discharge LUT values evaluated along the uploaded time profile.</p>
+            </div>
+            <div class="curve-controls">
+              <div class="curve-control">
+                <label for="paramSelect">Parameter plot</label>
+                <select id="paramSelect">
+                  <option value="R0">R0 charge/discharge</option>
+                  <option value="R1">R1 charge/discharge</option>
+                  <option value="R2">R2 charge/discharge</option>
+                  <option value="tau1">Tau1 charge/discharge</option>
+                  <option value="tau2">Tau2 charge/discharge</option>
+                  <option value="C1">C1 charge/discharge</option>
+                  <option value="C2">C2 charge/discharge</option>
+                  <option value="OCV">OCV charge/discharge</option>
+                </select>
+              </div>
+              <span class="chip" id="paramChip">R0</span>
+            </div>
+          </div>
           <div id="paramPlot" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title">
+            <div>
+              <h2>Cell Passport LUT Curves — SOC domain</h2>
+              <p class="chart-desc">Independent model view: charge/discharge lookup-table curves versus SOC at the selected temperature.</p>
+            </div>
+            <div class="curve-controls">
+              <div class="curve-control">
+                <label for="lutCurveSelect">LUT curve</label>
+                <select id="lutCurveSelect">
+                  <option value="OCV">OCV charge/discharge</option>
+                  <option value="R0">R0 charge/discharge</option>
+                  <option value="R1">R1 charge/discharge</option>
+                  <option value="R2">R2 charge/discharge</option>
+                  <option value="tau1">Tau1 charge/discharge</option>
+                  <option value="tau2">Tau2 charge/discharge</option>
+                  <option value="C1">C1 charge/discharge</option>
+                  <option value="C2">C2 charge/discharge</option>
+                </select>
+              </div>
+              <div class="curve-control">
+                <label for="lutCurveTemp">Curve temperature [°C]</label>
+                <input id="lutCurveTemp" type="number" min="-40" max="80" step="0.1" value="25" />
+              </div>
+              <span class="chip" id="lutCurveChip">OCV @ 25.0 °C</span>
+            </div>
+          </div>
+          <div id="lutCurvePlot" class="plot"></div>
         </div>
       </section>
 
@@ -551,13 +611,13 @@
     return out;
   }
 
-  function plotlyLayout(title, yTitle) {
+  function plotlyLayout(title, yTitle, xTitle='Time [h]') {
     return {
       title: { text: title, font: { color: '#e5eefb', size: 13 } },
       margin: { l: 62, r: 28, t: 38, b: 52 },
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(2,6,23,.35)',
       font: { color: '#cbd5e1' },
-      xaxis: { title: 'Time [h]', gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
+      xaxis: { title: xTitle, gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
       yaxis: { title: yTitle, gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
       legend: { orientation: 'h', y: 1.08, x: 0 },
       hovermode: 'x unified'
@@ -583,6 +643,10 @@
       yaxis2: { title:'Current [A]', overlaying:'y', side:'right', gridcolor:'rgba(0,0,0,0)', color:'#fbbf24' }
     }, { responsive:true, displaylogo:false });
     renderParamPlot();
+    if ($('lutCurveTemp') && Number.isFinite(r.Tq)) {
+      $('lutCurveTemp').value = r.Tq.toFixed(1);
+    }
+    renderLutCurvePlot();
   }
 
   function paramSeriesForSelection(r, sel) {
@@ -614,6 +678,68 @@
       { x:s.x, y:s.yc, type:'scattergl', mode:'lines', name:'Charge LUT', line:{ color:'#fb7185', width:1.2 } },
       { x:s.x, y:s.yd, type:'scattergl', mode:'lines', name:'Discharge LUT', line:{ color:'#60a5fa', width:1.2 } }
     ], plotlyLayout(s.title, s.ylabel), { responsive:true, displaylogo:false });
+  }
+
+  function lutCurveSeriesForSelection(Tq, sel) {
+    if (!state.chargeLut || !state.dischargeLut) return null;
+    const soc = state.chargeLut.socGrid;
+    const chg = makeLutLookup(state.chargeLut, Tq);
+    const dis = makeLutLookup(state.dischargeLut, Tq);
+    const fields = {
+      OCV:  { f:'OCV_V',  scale:1,    ylabel:'OCV [V]',  title:'OCV hysteresis branches vs SOC' },
+      R0:   { f:'R0_ohm', scale:1000, ylabel:'R0 [mΩ]',  title:'Ohmic resistance R0 vs SOC' },
+      R1:   { f:'R1_ohm', scale:1000, ylabel:'R1 [mΩ]',  title:'First polarization resistance R1 vs SOC' },
+      R2:   { f:'R2_ohm', scale:1000, ylabel:'R2 [mΩ]',  title:'Second polarization/diffusion resistance R2 vs SOC' },
+      tau1: { f:'tau1_s', scale:1,    ylabel:'Tau1 [s]', title:'First RC time constant Tau1 vs SOC' },
+      tau2: { f:'tau2_s', scale:1,    ylabel:'Tau2 [s]', title:'Second RC time constant Tau2 vs SOC' },
+      C1:   { f:'C1_F',   scale:1,    ylabel:'C1 [F]',   title:'First RC capacitance C1 vs SOC' },
+      C2:   { f:'C2_F',   scale:1,    ylabel:'C2 [F]',   title:'Second RC capacitance C2 vs SOC' }
+    };
+    const meta = fields[sel] || fields.OCV;
+    return {
+      socPct: soc.map(s => s*100),
+      charge: soc.map(s => chg(meta.f, s) * meta.scale),
+      discharge: soc.map(s => dis(meta.f, s) * meta.scale),
+      ...meta
+    };
+  }
+
+  function renderLutCurvePlot() {
+    if (!window.Plotly || !state.chargeLut || !state.dischargeLut) return;
+    const sel = $('lutCurveSelect').value;
+    const Tq = Number($('lutCurveTemp').value);
+    const Tplot = Number.isFinite(Tq) ? Tq : 25;
+    const s = lutCurveSeriesForSelection(Tplot, sel);
+    if (!s) return;
+    const tempLabel = Tplot.toFixed(1);
+    $('lutCurveChip').textContent = `${sel} @ ${tempLabel} °C`;
+    Plotly.react('lutCurvePlot', [
+      {
+        x: s.socPct,
+        y: s.charge,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Charge LUT',
+        line: { color: '#fb7185', width: 2 }
+      },
+      {
+        x: s.socPct,
+        y: s.discharge,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Discharge LUT',
+        line: { color: '#60a5fa', width: 2 }
+      }
+    ],
+    plotlyLayout(
+      `${s.title} at ${tempLabel} °C`,
+      s.ylabel,
+      'SOC [%]'
+    ),
+    {
+      responsive: true,
+      displaylogo: false
+    });
   }
 
   function renderKPIs(r) {
@@ -682,6 +808,7 @@
       state.chargeLut = parseLut(c);
       state.dischargeLut = parseLut(d);
       state.capacity = parseCapacity(q);
+      renderLutCurvePlot();
       const t = state.chargeLut.temps.join(', ');
       status.innerHTML = `<strong>Model LUTs loaded.</strong> Available temperature breakpoints: ${t} °C. Upload a cycler CSV or load the bundled demo.`;
     } catch (err) {
@@ -711,6 +838,8 @@
     if (state.inputText) processText(state.inputText, state.inputName || 'uploaded CSV');
   }));
   $('paramSelect').addEventListener('change', renderParamPlot);
+  $('lutCurveSelect').addEventListener('change', renderLutCurvePlot);
+  $('lutCurveTemp').addEventListener('change', renderLutCurvePlot);
   $('sampleSlider').addEventListener('input', ev => renderReadout(ev.target.value));
 
   loadModel();
