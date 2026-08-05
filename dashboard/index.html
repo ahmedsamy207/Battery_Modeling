@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SHP320-35 Cell Passport Digital Twin</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(15, 28, 48, 0.88);
+      --panel2: rgba(10, 20, 35, 0.92);
+      --border: rgba(148, 163, 184, 0.22);
+      --muted: #94a3b8;
+      --text: #e5eefb;
+      --accent: #22c55e;
+      --accent2: #38bdf8;
+      --warn: #f59e0b;
+      --danger: #fb7185;
+      --chip: rgba(56, 189, 248, 0.12);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(34, 197, 94, 0.18), transparent 30%),
+        radial-gradient(circle at 85% 12%, rgba(56, 189, 248, 0.16), transparent 34%),
+        linear-gradient(135deg, #07111f 0%, #081526 48%, #06111d 100%);
+    }
+    a { color: #7dd3fc; }
+    .wrap { max-width: 1480px; margin: 0 auto; padding: 26px; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .hero-main { padding: 30px; position: relative; overflow: hidden; }
+    .hero-main:after {
+      content: "";
+      position: absolute; inset: auto -120px -140px auto;
+      width: 360px; height: 360px; border-radius: 999px;
+      background: radial-gradient(circle, rgba(34,197,94,.18), transparent 65%);
+      pointer-events: none;
+    }
+    .eyebrow { color: #86efac; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; font-weight: 800; }
+    h1 { margin: 10px 0 12px; font-size: clamp(32px, 5vw, 58px); line-height: 0.95; letter-spacing: -0.045em; }
+    .subtitle { max-width: 860px; color: #cbd5e1; font-size: 17px; line-height: 1.65; margin: 0; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+    .btn, button, .file-label {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-weight: 800;
+      color: #04111f;
+      background: linear-gradient(135deg, #86efac, #22c55e);
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(34, 197, 94, .22);
+      transition: transform .15s ease, filter .15s ease, opacity .15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+    }
+    .btn.secondary, button.secondary { color: var(--text); background: rgba(148,163,184,.12); border: 1px solid var(--border); box-shadow: none; }
+    .btn.blue { background: linear-gradient(135deg, #7dd3fc, #38bdf8); box-shadow: 0 12px 30px rgba(56, 189, 248, .18); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button:hover:not(:disabled), .file-label:hover { transform: translateY(-1px); filter: brightness(1.04); }
+    input[type="file"] { display: none; }
+    .passport { padding: 22px; }
+    .passport-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 16px; }
+    .battery-icon {
+      width: 58px; height: 34px; border: 3px solid #93c5fd; border-radius: 8px; position: relative;
+      box-shadow: inset 0 0 0 5px rgba(59,130,246,.12);
+    }
+    .battery-icon:before { content:""; position:absolute; right:-9px; top:8px; width:6px; height:14px; border-radius:2px; background:#93c5fd; }
+    .battery-icon:after { content:""; position:absolute; inset:4px 18px 4px 4px; background: linear-gradient(90deg,#22c55e,#a3e635); border-radius:4px; }
+    .spec-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .spec { padding: 12px; border:1px solid var(--border); border-radius: 14px; background: rgba(15,23,42,.5); }
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .value { font-weight: 900; font-size: 16px; }
+    .chiprow { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+    .chip { padding:7px 10px; border:1px solid rgba(56,189,248,.24); background: var(--chip); color:#bae6fd; border-radius:999px; font-size:12px; font-weight:800; }
+
+    .controls { padding: 18px; margin-bottom: 20px; }
+    .controls-grid { display: grid; grid-template-columns: 1.35fr repeat(4, minmax(150px, 0.55fr)); gap: 14px; align-items: end; }
+    .control label { display:block; color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 7px; }
+    select, input[type="number"], input[type="range"] {
+      width: 100%; border-radius: 12px; border:1px solid var(--border); background: rgba(2, 6, 23, .65);
+      color: var(--text); padding: 11px 12px; outline: none;
+    }
+    input[type="range"] { padding: 0; accent-color: #22c55e; }
+    .file-name { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 16px; overflow-wrap:anywhere; }
+    .status { margin-top: 12px; color: #cbd5e1; font-size: 13px; }
+    .status strong { color: #86efac; }
+    .error { color: #fecdd3; background: rgba(244,63,94,.12); border:1px solid rgba(244,63,94,.32); border-radius: 12px; padding: 10px; display:none; margin-top:12px; }
+
+    .kpis { display:grid; grid-template-columns: repeat(6, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .kpi { padding: 16px; background: var(--panel2); border:1px solid var(--border); border-radius: 18px; }
+    .kpi .label { text-transform: uppercase; letter-spacing: .08em; }
+    .kpi .value { font-size: 24px; letter-spacing: -0.03em; }
+    .kpi .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .grid { display:grid; grid-template-columns: minmax(0, 1.45fr) minmax(360px, .75fr); gap: 20px; }
+    .chart-panel { padding: 14px; margin-bottom: 20px; }
+    .chart-title { display:flex; justify-content:space-between; align-items:center; gap:12px; padding: 4px 6px 10px; }
+    .chart-title h2 { margin:0; font-size: 18px; }
+    .plot { width:100%; height: 420px; }
+    #paramPlot { height: 360px; }
+    #socPlot, #residualPlot { height: 300px; }
+    .readout { padding: 18px; position: sticky; top: 18px; }
+    .readout h2 { margin: 0 0 12px; font-size: 20px; }
+    .slider-row { margin: 16px 0; }
+    .readout-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .readout-card { padding: 12px; border-radius: 14px; background: rgba(15,23,42,.56); border:1px solid var(--border); }
+    .readout-card.wide { grid-column: 1 / -1; }
+    .readout-card .value { font-size: 18px; }
+    .param-table { width:100%; border-collapse:collapse; margin-top: 14px; font-size: 13px; }
+    .param-table th, .param-table td { padding: 8px 6px; border-bottom:1px solid rgba(148,163,184,.16); text-align:right; }
+    .param-table th:first-child, .param-table td:first-child { text-align:left; color:#cbd5e1; }
+    .param-table th { color: var(--muted); font-size: 11px; text-transform:uppercase; letter-spacing:.06em; }
+    .note { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 14px; }
+    .footer { color: var(--muted); padding: 20px 4px 6px; font-size: 12px; }
+    .hidden { display:none; }
+    @media (max-width: 1100px) {
+      .hero, .grid, .controls-grid { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+      .readout { position: static; }
+    }
+    @media (max-width: 620px) { .wrap { padding: 14px; } .kpis, .spec-grid { grid-template-columns: 1fr; } .plot { height: 340px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-main panel">
+        <div class="eyebrow">Cell passport · time-domain digital twin</div>
+        <h1>SHP320-35 hybrid solid-state cell dashboard</h1>
+        <p class="subtitle">
+          Upload a cycler CSV and replay it through the repository's identified 2-RC SOC×temperature model.
+          The dashboard overlays measured and simulated voltage, estimates SOC, and exposes the charge/discharge LUT parameters used by the observer.
+        </p>
+        <div class="hero-actions">
+          <label class="file-label" for="csvFile">Upload CSV</label>
+          <input id="csvFile" type="file" accept=".csv,text/csv" />
+          <button id="demoBtn" class="blue">Load bundled 25 °C HPPC demo</button>
+          <button id="clearBtn" class="secondary">Reset</button>
+        </div>
+        <div id="fileName" class="file-name">No CSV loaded yet.</div>
+      </div>
+      <aside class="passport panel">
+        <div class="passport-title">
+          <div>
+            <div class="eyebrow">Digital passport</div>
+            <h2 style="margin:6px 0 0">WeLion / Abee PL1187187</h2>
+          </div>
+          <div class="battery-icon" aria-hidden="true"></div>
+        </div>
+        <div class="spec-grid">
+          <div class="spec"><div class="label">Nominal capacity</div><div class="value">35 Ah</div></div>
+          <div class="spec"><div class="label">Nominal voltage</div><div class="value">3.65 V</div></div>
+          <div class="spec"><div class="label">Voltage window</div><div class="value">2.75–4.20 V</div></div>
+          <div class="spec"><div class="label">Standard current</div><div class="value">0.33C · 11.55 A</div></div>
+          <div class="spec"><div class="label">Rate discharge</div><div class="value">3C · 105 A</div></div>
+          <div class="spec"><div class="label">Charge / discharge T</div><div class="value">0–45 / -20–55 °C</div></div>
+        </div>
+        <div class="chiprow">
+          <span class="chip">2-RC ECM</span><span class="chip">Dual LUT</span><span class="chip">OCV hysteresis</span><span class="chip">SOC×T lookup</span>
+        </div>
+      </aside>
+    </section>
+
+    <section class="controls panel">
+      <div class="controls-grid">
+        <div class="control">
+          <label>Simulation mode</label>
+          <select id="socMode">
+            <option value="auto">Auto HPPC/full-charge anchor (matches MATLAB validation)</option>
+            <option value="initial">Use user initial SOC</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Initial SOC for user mode</label>
+          <input id="initialSoc" type="number" min="0" max="100" step="0.1" value="100" />
+        </div>
+        <div class="control">
+          <label>Temperature source</label>
+          <select id="tempMode">
+            <option value="auto">Auto from CSV temperature column</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Manual temperature [°C]</label>
+          <input id="manualTemp" type="number" min="-40" max="80" step="0.1" value="25" />
+        </div>
+        <div class="control">
+          <label>Parameter plot</label>
+          <select id="paramSelect">
+            <option value="R0">R0 charge/discharge</option>
+            <option value="R1">R1 charge/discharge</option>
+            <option value="R2">R2 charge/discharge</option>
+            <option value="tau1">Tau1 charge/discharge</option>
+            <option value="tau2">Tau2 charge/discharge</option>
+            <option value="C1">C1 charge/discharge</option>
+            <option value="C2">C2 charge/discharge</option>
+            <option value="OCV">OCV charge/discharge</option>
+          </select>
+        </div>
+      </div>
+      <div id="status" class="status">Loading model LUTs from <code>results/</code>…</div>
+      <div id="errorBox" class="error"></div>
+    </section>
+
+    <section id="kpis" class="kpis hidden"></section>
+
+    <main class="grid">
+      <section>
+        <div class="chart-panel panel">
+          <div class="chart-title"><h2>Measured vs simulated terminal voltage</h2><span class="chip" id="voltageChip">waiting for CSV</span></div>
+          <div id="voltagePlot" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><h2>Voltage residual</h2><span class="chip">Vsim − Vmeas</span></div>
+          <div id="residualPlot" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><h2>State of charge trajectory</h2><span class="chip" id="socChip">SOC estimate</span></div>
+          <div id="socPlot" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><h2>Lookup parameters along uploaded profile</h2><span class="chip" id="paramChip">R0</span></div>
+          <div id="paramPlot" class="plot"></div>
+        </div>
+      </section>
+
+      <aside class="readout panel">
+        <h2>Sample readout</h2>
+        <div class="note">Move the slider to inspect the SOC and the exact dual-LUT parameters evaluated at that operating point.</div>
+        <div class="slider-row">
+          <label for="sampleSlider" class="label">Time sample</label>
+          <input id="sampleSlider" type="range" min="0" max="0" value="0" disabled />
+        </div>
+        <div id="readoutGrid" class="readout-grid">
+          <div class="readout-card wide"><div class="label">No data</div><div class="value">Upload a CSV to begin</div></div>
+        </div>
+        <table class="param-table" id="paramTable">
+          <thead><tr><th>Parameter</th><th>Charge</th><th>Discharge</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="note">
+          Model convention follows the MATLAB scripts: cycler current <b>I&gt;0</b> is charge and <b>I&lt;0</b> is discharge. Dynamic simulation switches to the charge LUT only when I&gt;0; rest/discharge points use the discharge LUT.
+        </div>
+      </aside>
+    </main>
+    <div class="footer">Built from repository artifacts: <code>LUT2D_Charge_2RC.csv</code>, <code>LUT2D_Discharge_2RC.csv</code>, and <code>Capacity_vs_T.csv</code>.</div>
+  </div>
+
+<script>
+(() => {
+  const MODEL_PATHS = {
+    charge: '../results/LUT2D_Charge_2RC.csv',
+    discharge: '../results/LUT2D_Discharge_2RC.csv',
+    capacity: '../results/Capacity_vs_T.csv',
+    demo: '../data/Solid State - Cell 2 - HPPC 25 Celsius.csv'
+  };
+  const MAX_PLOT_POINTS = 6500;
+  const state = { chargeLut: null, dischargeLut: null, capacity: null, result: null, inputText: null, inputName: null };
+
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+  const errorBox = $('errorBox');
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+    console.error(msg);
+  }
+  function clearError() { errorBox.style.display = 'none'; errorBox.textContent = ''; }
+  function fmt(x, digits=3) {
+    if (!Number.isFinite(x)) return '—';
+    const ax = Math.abs(x);
+    if (ax >= 1000) return x.toFixed(0);
+    if (ax >= 100) return x.toFixed(1);
+    if (ax >= 10) return x.toFixed(2);
+    return x.toFixed(digits);
+  }
+  function percent(x) { return Number.isFinite(x) ? `${(x*100).toFixed(2)}%` : '—'; }
+
+  function parseCSV(text) {
+    text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = text.split('\n').filter(l => l.trim().length);
+    if (lines.length < 2) throw new Error('CSV has no data rows.');
+    const parseLine = (line) => {
+      const out = []; let cur = ''; let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    };
+    const headers = parseLine(lines[0]);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = parseLine(lines[i]);
+      if (cells.length === 1 && cells[0] === '') continue;
+      const row = {};
+      for (let j = 0; j < headers.length; j++) row[headers[j]] = cells[j] ?? '';
+      rows.push(row);
+    }
+    return { headers, rows };
+  }
+
+  async function fetchText(path) {
+    const res = await fetch(path, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Cannot load ${path} (${res.status})`);
+    return await res.text();
+  }
+
+  function parseLut(text) {
+    const { headers, rows } = parseCSV(text);
+    const socHeader = headers.find(h => /soc/i.test(h)) || headers[0];
+    const socGrid = rows.map(r => Number(r[socHeader]));
+    const fields = {};
+    const temps = new Set();
+    for (const h of headers) {
+      if (h === socHeader) continue;
+      const m = h.match(/^(.*)_(-?\d+(?:\.\d+)?)C$/i);
+      if (!m) continue;
+      const field = m[1]; const T = Number(m[2]);
+      temps.add(T);
+      if (!fields[field]) fields[field] = {};
+      fields[field][T] = rows.map(r => Number(r[h]));
+    }
+    const tList = Array.from(temps).sort((a,b) => a-b);
+    return { socGrid, temps: tList, fields };
+  }
+
+  function parseCapacity(text) {
+    const { headers, rows } = parseCSV(text);
+    const tH = headers.find(h => /T/i.test(h)) || headers[0];
+    const qH = headers.find(h => /Q|capacity|Ah/i.test(h)) || headers[1];
+    const points = rows.map(r => ({ T: Number(r[tH]), Q: Number(r[qH]) }))
+      .filter(p => Number.isFinite(p.T) && Number.isFinite(p.Q)).sort((a,b) => a.T-b.T);
+    if (points.length === 0) throw new Error('Capacity_vs_T.csv did not contain numeric T/Q columns.');
+    return points;
+  }
+
+  function interp1(x, xp, fp) {
+    if (!xp || !fp || xp.length === 0) return NaN;
+    if (x <= xp[0]) return fp[0];
+    const n = xp.length;
+    if (x >= xp[n-1]) return fp[n-1];
+    // SOC grid is monotonic and uniform in this project, direct index is faster.
+    const dx = xp[1] - xp[0];
+    let i = Math.floor((x - xp[0]) / dx);
+    if (i < 0) i = 0;
+    if (i >= n-1 || xp[i+1] < x) {
+      i = 0;
+      while (i < n-1 && xp[i+1] < x) i++;
+    }
+    const w = (x - xp[i]) / (xp[i+1] - xp[i]);
+    return fp[i] * (1-w) + fp[i+1] * w;
+  }
+
+  function tempBracket(temps, Tq) {
+    if (Tq <= temps[0]) return [temps[0], temps[0], 0];
+    if (Tq >= temps[temps.length-1]) return [temps[temps.length-1], temps[temps.length-1], 0];
+    for (let i = 0; i < temps.length-1; i++) {
+      if (Tq >= temps[i] && Tq <= temps[i+1]) {
+        const w = (Tq - temps[i]) / (temps[i+1] - temps[i]);
+        return [temps[i], temps[i+1], w];
+      }
+    }
+    return [temps[0], temps[0], 0];
+  }
+
+  function makeLutLookup(lut, Tq) {
+    const [t0, t1, wt] = tempBracket(lut.temps, Tq);
+    return (field, soc) => {
+      const f = lut.fields[field];
+      if (!f) return NaN;
+      const v0 = interp1(soc, lut.socGrid, f[t0]);
+      if (t0 === t1) return v0;
+      const v1 = interp1(soc, lut.socGrid, f[t1]);
+      return v0*(1-wt) + v1*wt;
+    };
+  }
+
+  function capacityAt(Tq) {
+    const pts = state.capacity;
+    if (Tq <= pts[0].T) return pts[0].Q;
+    if (Tq >= pts[pts.length-1].T) return pts[pts.length-1].Q;
+    for (let i = 0; i < pts.length-1; i++) {
+      if (Tq >= pts[i].T && Tq <= pts[i+1].T) {
+        const w = (Tq - pts[i].T) / (pts[i+1].T - pts[i].T);
+        return pts[i].Q*(1-w) + pts[i+1].Q*w;
+      }
+    }
+    return pts[0].Q;
+  }
+
+  function findHeader(headers, patterns, required=true) {
+    for (const p of patterns) {
+      const exact = headers.find(h => h === p);
+      if (exact) return exact;
+    }
+    const lower = headers.map(h => h.toLowerCase().replace(/\s+/g, ''));
+    for (const p of patterns) {
+      const needle = p.toLowerCase().replace(/\s+/g, '');
+      const idx = lower.findIndex(h => h === needle || h.includes(needle));
+      if (idx >= 0) return headers[idx];
+    }
+    if (required) throw new Error(`Required column not found. Tried: ${patterns.join(', ')}`);
+    return null;
+  }
+
+  function numericColumn(rows, header) {
+    return rows.map(r => {
+      const v = Number(String(r[header] ?? '').replace(/\s/g, ''));
+      return Number.isFinite(v) ? v : NaN;
+    });
+  }
+
+  function meanFinite(a) { let s=0,n=0; for (const v of a) if (Number.isFinite(v)) { s+=v; n++; } return n ? s/n : NaN; }
+  function minFinite(a) { let m=Infinity; for (const v of a) if (Number.isFinite(v) && v<m) m=v; return m===Infinity?NaN:m; }
+  function maxFinite(a) { let m=-Infinity; for (const v of a) if (Number.isFinite(v) && v>m) m=v; return m===-Infinity?NaN:m; }
+
+  function extractCycler(parsed) {
+    const h = parsed.headers;
+    const timeH = findHeader(h, ['DWell Time(ms)', 'Time(ms)', 'Test Time(ms)', 'Time(s)', 'time'], true);
+    const voltageH = findHeader(h, ['Voltage(V)', 'Voltage', 'V', 'voltage_v'], true);
+    const currentH = findHeader(h, ['Current(A)', 'Current', 'I', 'current_a'], true);
+    const tempH = findHeader(h, ['Temperature', 'Temperature(C)', 'Temp(C)', 'T'], false);
+    const tRaw = numericColumn(parsed.rows, timeH);
+    const V = numericColumn(parsed.rows, voltageH);
+    const I = numericColumn(parsed.rows, currentH);
+    const temp = tempH ? numericColumn(parsed.rows, tempH) : [];
+    const isMs = /ms/i.test(timeH) || maxFinite(tRaw) > 200000;
+    const t = tRaw.map(v => isMs ? v/1000 : v);
+    const clean = [];
+    for (let i=0; i<t.length; i++) if (Number.isFinite(t[i]) && Number.isFinite(V[i]) && Number.isFinite(I[i])) clean.push(i);
+    if (clean.length < 5) throw new Error('CSV did not contain enough numeric time/voltage/current samples.');
+    return {
+      t: clean.map(i => t[i]), V: clean.map(i => V[i]), I: clean.map(i => I[i]),
+      temp: clean.map(i => temp[i]).filter(Number.isFinite), columns: { timeH, voltageH, currentH, tempH }
+    };
+  }
+
+  function computeSOC(t, I, Q, mode, initialSocPct) {
+    const n = t.length;
+    const dt = new Array(n).fill(0);
+    for (let i=1; i<n; i++) dt[i] = Math.max(0, t[i]-t[i-1]);
+    const Ah = new Array(n).fill(0);
+    for (let i=1; i<n; i++) Ah[i] = Ah[i-1] + I[i] * dt[i] / 3600;
+    const soc = new Array(n);
+    if (mode === 'auto') {
+      const maxAh = maxFinite(Ah);
+      for (let i=0; i<n; i++) soc[i] = clamp(1 - (maxAh - Ah[i]) / Q, 0, 1);
+    } else {
+      const s0 = clamp(initialSocPct/100, 0, 1);
+      for (let i=0; i<n; i++) soc[i] = clamp(s0 + Ah[i] / Q, 0, 1);
+    }
+    return { soc, dt, Ah };
+  }
+
+  function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+
+  function simulate(data) {
+    const tempAuto = meanFinite(data.temp);
+    const Tq = $('tempMode').value === 'manual' ? Number($('manualTemp').value) : (Number.isFinite(tempAuto) ? tempAuto : 25);
+    const Q = capacityAt(Tq);
+    const mode = $('socMode').value;
+    const initialSocPct = Number($('initialSoc').value);
+    const { soc, dt, Ah } = computeSOC(data.t, data.I, Q, mode, initialSocPct);
+    const chg = makeLutLookup(state.chargeLut, Tq);
+    const dis = makeLutLookup(state.dischargeLut, Tq);
+    const n = data.t.length;
+    const Vsim = new Array(n).fill(0), Vc1 = new Array(n).fill(0), Vc2 = new Array(n).fill(0);
+    const params = {
+      R0c: new Array(n), R0d: new Array(n), R1c: new Array(n), R1d: new Array(n), R2c: new Array(n), R2d: new Array(n),
+      tau1c: new Array(n), tau1d: new Array(n), tau2c: new Array(n), tau2d: new Array(n),
+      C1c: new Array(n), C1d: new Array(n), C2c: new Array(n), C2d: new Array(n), OCVc: new Array(n), OCVd: new Array(n)
+    };
+    const evalAll = (i) => {
+      const s = soc[i];
+      params.OCVc[i] = chg('OCV_V', s); params.OCVd[i] = dis('OCV_V', s);
+      params.R0c[i] = chg('R0_ohm', s); params.R0d[i] = dis('R0_ohm', s);
+      params.R1c[i] = chg('R1_ohm', s); params.R1d[i] = dis('R1_ohm', s);
+      params.R2c[i] = chg('R2_ohm', s); params.R2d[i] = dis('R2_ohm', s);
+      params.tau1c[i] = chg('tau1_s', s); params.tau1d[i] = dis('tau1_s', s);
+      params.tau2c[i] = chg('tau2_s', s); params.tau2d[i] = dis('tau2_s', s);
+      params.C1c[i] = chg('C1_F', s); params.C1d[i] = dis('C1_F', s);
+      params.C2c[i] = chg('C2_F', s); params.C2d[i] = dis('C2_F', s);
+    };
+    for (let i=0; i<n; i++) evalAll(i);
+    const useChg0 = data.I[0] > 0;
+    Vsim[0] = (useChg0 ? params.OCVc[0] + data.I[0]*params.R0c[0] : params.OCVd[0] + data.I[0]*params.R0d[0]);
+    for (let i=1; i<n; i++) {
+      const useChg = data.I[i] > 0;
+      const R0 = useChg ? params.R0c[i] : params.R0d[i];
+      const R1 = useChg ? params.R1c[i] : params.R1d[i];
+      const R2 = useChg ? params.R2c[i] : params.R2d[i];
+      const tau1 = Math.max(useChg ? params.tau1c[i] : params.tau1d[i], 1e-3);
+      const tau2 = Math.max(useChg ? params.tau2c[i] : params.tau2d[i], 1e-3);
+      const OCV = useChg ? params.OCVc[i] : params.OCVd[i];
+      const d1 = Math.exp(-dt[i]/tau1), d2 = Math.exp(-dt[i]/tau2);
+      Vc1[i] = Vc1[i-1]*d1 + R1*data.I[i]*(1-d1);
+      Vc2[i] = Vc2[i-1]*d2 + R2*data.I[i]*(1-d2);
+      Vsim[i] = OCV + data.I[i]*R0 + Vc1[i] + Vc2[i];
+    }
+    const residual = Vsim.map((v,i) => v - data.V[i]);
+    const rmse = Math.sqrt(residual.reduce((s,e) => s + e*e, 0) / residual.length);
+    const mae = residual.reduce((s,e) => s + Math.abs(e), 0) / residual.length;
+    const maxAbs = residual.reduce((m,e) => Math.max(m, Math.abs(e)), 0);
+    return { ...data, Tq, Q, soc, dt, Ah, Vsim, residual, params, rmse, mae, maxAbs, mode };
+  }
+
+  function decimate(result, arrays) {
+    const n = result.t.length;
+    const step = Math.max(1, Math.ceil(n / MAX_PLOT_POINTS));
+    const out = { idx: [] };
+    for (const key of arrays) out[key] = [];
+    for (let i=0; i<n; i+=step) {
+      out.idx.push(i);
+      for (const key of arrays) out[key].push(result[key][i]);
+    }
+    if (out.idx[out.idx.length-1] !== n-1) {
+      out.idx.push(n-1);
+      for (const key of arrays) out[key].push(result[key][n-1]);
+    }
+    return out;
+  }
+
+  function plotlyLayout(title, yTitle) {
+    return {
+      title: { text: title, font: { color: '#e5eefb', size: 13 } },
+      margin: { l: 62, r: 28, t: 38, b: 52 },
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(2,6,23,.35)',
+      font: { color: '#cbd5e1' },
+      xaxis: { title: 'Time [h]', gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
+      yaxis: { title: yTitle, gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
+      legend: { orientation: 'h', y: 1.08, x: 0 },
+      hovermode: 'x unified'
+    };
+  }
+
+  function renderPlots(r) {
+    if (!window.Plotly) { showError('Plotly CDN did not load. Check internet access or vendor Plotly locally.'); return; }
+    const d = decimate(r, ['t','V','Vsim','residual','soc','I']);
+    const th = d.t.map(x => x/3600);
+    Plotly.react('voltagePlot', [
+      { x: th, y: d.V, type:'scattergl', mode:'lines', name:'Measured', line:{ color:'#e5e7eb', width:1.5 } },
+      { x: th, y: d.Vsim, type:'scattergl', mode:'lines', name:'Simulated dual-LUT 2RC', line:{ color:'#22c55e', width:1.4, dash:'dash' } }
+    ], plotlyLayout('', 'Voltage [V]'), { responsive:true, displaylogo:false });
+    Plotly.react('residualPlot', [
+      { x: th, y: d.residual.map(e => e*1000), type:'scattergl', mode:'lines', name:'Residual', line:{ color:'#38bdf8', width:1 } }
+    ], plotlyLayout('', 'Error [mV]'), { responsive:true, displaylogo:false });
+    Plotly.react('socPlot', [
+      { x: th, y: d.soc.map(s => s*100), type:'scattergl', mode:'lines', name:'SOC', line:{ color:'#a3e635', width:1.4 } },
+      { x: th, y: d.I, type:'scattergl', mode:'lines', name:'Current [A]', yaxis:'y2', line:{ color:'#f59e0b', width:.8 } }
+    ], {
+      ...plotlyLayout('', 'SOC [%]'),
+      yaxis2: { title:'Current [A]', overlaying:'y', side:'right', gridcolor:'rgba(0,0,0,0)', color:'#fbbf24' }
+    }, { responsive:true, displaylogo:false });
+    renderParamPlot();
+  }
+
+  function paramSeriesForSelection(r, sel) {
+    const p = r.params;
+    const th = r.t.map(x => x/3600);
+    let charge, discharge, ylabel, title;
+    if (sel === 'R0') { charge=p.R0c.map(v=>v*1000); discharge=p.R0d.map(v=>v*1000); ylabel='R0 [mΩ]'; title='R0 charge/discharge along SOC path'; }
+    if (sel === 'R1') { charge=p.R1c.map(v=>v*1000); discharge=p.R1d.map(v=>v*1000); ylabel='R1 [mΩ]'; title='R1 charge/discharge along SOC path'; }
+    if (sel === 'R2') { charge=p.R2c.map(v=>v*1000); discharge=p.R2d.map(v=>v*1000); ylabel='R2 [mΩ]'; title='R2 charge/discharge along SOC path'; }
+    if (sel === 'tau1') { charge=p.tau1c; discharge=p.tau1d; ylabel='Tau1 [s]'; title='Tau1 charge/discharge along SOC path'; }
+    if (sel === 'tau2') { charge=p.tau2c; discharge=p.tau2d; ylabel='Tau2 [s]'; title='Tau2 charge/discharge along SOC path'; }
+    if (sel === 'C1') { charge=p.C1c; discharge=p.C1d; ylabel='C1 [F]'; title='C1 charge/discharge along SOC path'; }
+    if (sel === 'C2') { charge=p.C2c; discharge=p.C2d; ylabel='C2 [F]'; title='C2 charge/discharge along SOC path'; }
+    if (sel === 'OCV') { charge=p.OCVc; discharge=p.OCVd; ylabel='OCV [V]'; title='OCV branch values along SOC path'; }
+    const step = Math.max(1, Math.ceil(th.length / MAX_PLOT_POINTS));
+    const x=[], yc=[], yd=[];
+    for (let i=0; i<th.length; i+=step) { x.push(th[i]); yc.push(charge[i]); yd.push(discharge[i]); }
+    if (x[x.length-1] !== th[th.length-1]) { const i=th.length-1; x.push(th[i]); yc.push(charge[i]); yd.push(discharge[i]); }
+    return { x, yc, yd, ylabel, title };
+  }
+
+  function renderParamPlot() {
+    const r = state.result;
+    if (!r || !window.Plotly) return;
+    const sel = $('paramSelect').value;
+    const s = paramSeriesForSelection(r, sel);
+    $('paramChip').textContent = sel;
+    Plotly.react('paramPlot', [
+      { x:s.x, y:s.yc, type:'scattergl', mode:'lines', name:'Charge LUT', line:{ color:'#fb7185', width:1.2 } },
+      { x:s.x, y:s.yd, type:'scattergl', mode:'lines', name:'Discharge LUT', line:{ color:'#60a5fa', width:1.2 } }
+    ], plotlyLayout(s.title, s.ylabel), { responsive:true, displaylogo:false });
+  }
+
+  function renderKPIs(r) {
+    const kpis = [
+      ['RMSE', `${(r.rmse*1000).toFixed(2)} mV`, `${(r.rmse / meanFinite(r.V) * 100).toFixed(3)}% of mean V`],
+      ['MAE', `${(r.mae*1000).toFixed(2)} mV`, 'mean absolute error'],
+      ['Max |error|', `${(r.maxAbs*1000).toFixed(1)} mV`, 'worst point'],
+      ['Capacity used', `${fmt(r.Q,4)} Ah`, `interpolated at ${fmt(r.Tq,2)} °C`],
+      ['SOC range', `${percent(minFinite(r.soc))}–${percent(maxFinite(r.soc))}`, `final ${percent(r.soc[r.soc.length-1])}`],
+      ['Current range', `${fmt(minFinite(r.I),2)} to ${fmt(maxFinite(r.I),2)} A`, `${(r.t[r.t.length-1]/3600).toFixed(2)} h profile`]
+    ];
+    $('kpis').innerHTML = kpis.map(k => `<div class="kpi"><div class="label">${k[0]}</div><div class="value">${k[1]}</div><div class="sub">${k[2]}</div></div>`).join('');
+    $('kpis').classList.remove('hidden');
+    $('voltageChip').textContent = `${r.V.length.toLocaleString()} samples · T=${fmt(r.Tq,2)} °C`;
+    $('socChip').textContent = r.mode === 'auto' ? 'auto HPPC anchor' : 'user initial SOC';
+  }
+
+  function renderReadout(i) {
+    const r = state.result;
+    const grid = $('readoutGrid');
+    const tbody = $('paramTable').querySelector('tbody');
+    if (!r) return;
+    i = clamp(Number(i), 0, r.t.length-1) | 0;
+    const p = r.params;
+    grid.innerHTML = [
+      ['Time', `${fmt(r.t[i]/3600,4)} h`], ['SOC', percent(r.soc[i])],
+      ['Measured V', `${fmt(r.V[i],4)} V`], ['Simulated V', `${fmt(r.Vsim[i],4)} V`],
+      ['Residual', `${fmt(r.residual[i]*1000,2)} mV`], ['Current', `${fmt(r.I[i],3)} A`],
+      ['Temperature', `${fmt(r.Tq,2)} °C`], ['Branch used', r.I[i] > 0 ? 'Charge LUT' : 'Discharge LUT']
+    ].map(([l,v]) => `<div class="readout-card"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+    const rows = [
+      ['OCV [V]', p.OCVc[i], p.OCVd[i], 4, 1],
+      ['R0 [mΩ]', p.R0c[i], p.R0d[i], 3, 1000],
+      ['R1 [mΩ]', p.R1c[i], p.R1d[i], 3, 1000],
+      ['R2 [mΩ]', p.R2c[i], p.R2d[i], 3, 1000],
+      ['Tau1 [s]', p.tau1c[i], p.tau1d[i], 4, 1],
+      ['Tau2 [s]', p.tau2c[i], p.tau2d[i], 4, 1],
+      ['C1 [F]', p.C1c[i], p.C1d[i], 1, 1],
+      ['C2 [F]', p.C2c[i], p.C2d[i], 1, 1]
+    ];
+    tbody.innerHTML = rows.map(([name,c,d,dig,scale]) => `<tr><td>${name}</td><td>${fmt(c*scale,dig)}</td><td>${fmt(d*scale,dig)}</td></tr>`).join('');
+  }
+
+  function processText(text, name) {
+    clearError();
+    try {
+      const parsed = parseCSV(text);
+      const data = extractCycler(parsed);
+      state.result = simulate(data);
+      state.inputText = text; state.inputName = name;
+      $('fileName').textContent = name;
+      renderKPIs(state.result);
+      renderPlots(state.result);
+      const slider = $('sampleSlider');
+      slider.disabled = false; slider.min = 0; slider.max = state.result.t.length - 1; slider.value = 0;
+      renderReadout(0);
+      status.innerHTML = `<strong>Digital twin replay complete.</strong> Parsed ${state.result.V.length.toLocaleString()} samples using ${data.columns.timeH}, ${data.columns.voltageH}, ${data.columns.currentH}.`;
+    } catch (err) {
+      showError(err.message || String(err));
+    }
+  }
+
+  async function loadModel() {
+    try {
+      const [c, d, q] = await Promise.all([fetchText(MODEL_PATHS.charge), fetchText(MODEL_PATHS.discharge), fetchText(MODEL_PATHS.capacity)]);
+      state.chargeLut = parseLut(c);
+      state.dischargeLut = parseLut(d);
+      state.capacity = parseCapacity(q);
+      const t = state.chargeLut.temps.join(', ');
+      status.innerHTML = `<strong>Model LUTs loaded.</strong> Available temperature breakpoints: ${t} °C. Upload a cycler CSV or load the bundled demo.`;
+    } catch (err) {
+      showError(`Model load failed: ${err.message || err}`);
+      status.textContent = 'Model LUT load failed.';
+    }
+  }
+
+  $('csvFile').addEventListener('change', async (ev) => {
+    const file = ev.target.files[0]; if (!file) return;
+    const text = await file.text();
+    processText(text, file.name);
+  });
+  $('demoBtn').addEventListener('click', async () => {
+    try { status.textContent = 'Loading bundled HPPC demo…'; processText(await fetchText(MODEL_PATHS.demo), 'Bundled demo: Solid State - Cell 2 - HPPC 25 Celsius.csv'); }
+    catch (err) { showError(`Demo load failed: ${err.message || err}`); }
+  });
+  $('clearBtn').addEventListener('click', () => {
+    state.result = null; $('fileName').textContent = 'No CSV loaded yet.'; $('kpis').classList.add('hidden');
+    ['voltagePlot','residualPlot','socPlot','paramPlot'].forEach(id => { if (window.Plotly) Plotly.purge(id); $(id).innerHTML=''; });
+    $('readoutGrid').innerHTML = '<div class="readout-card wide"><div class="label">No data</div><div class="value">Upload a CSV to begin</div></div>';
+    $('paramTable').querySelector('tbody').innerHTML = '';
+    $('sampleSlider').disabled = true; $('sampleSlider').value = 0; $('sampleSlider').max = 0;
+    clearError();
+  });
+  ['socMode','initialSoc','tempMode','manualTemp'].forEach(id => $(id).addEventListener('change', () => {
+    if (state.inputText) processText(state.inputText, state.inputName || 'uploaded CSV');
+  }));
+  $('paramSelect').addEventListener('change', renderParamPlot);
+  $('sampleSlider').addEventListener('input', ev => renderReadout(ev.target.value));
+
+  loadModel();
+})();
+</script>
+</body>
+</html>
