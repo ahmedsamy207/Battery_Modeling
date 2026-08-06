@@ -21,26 +21,47 @@ SHP320_2RC_2D/
 │   ├── step5_BuildPackParams.m             ← Scale to 192S4P pack
 │   ├── step5_Validate.m                    ← validates the pack
 │   ├── Capacity_OCV_Validate.m             ← Capacity/OCV replay on cell model
-│   └── Aircraft_Mission.m                  ← NASA X-57 / eVTOL mission on pack   
+│   └── Aircraft_Mission.m                  ← NASA X-57 / eVTOL mission on pack
+│                                           (also exports mission_<type>.csv)
+├── dashboard/
+│   ├── index.html                          ← cell passport / digital twin dashboard
+│   ├── mission.html                        ← aircraft mission dashboard (192S4P pack, playback)
+│   └── README.md
 ├── tools/verify_pipeline_python.py         ← numerical mirror used for testing
 └── results/                                ← all outputs are written here
 ```
 
 ## Browser dashboard
 
-A static Cell Passport / Digital Twin dashboard is available in `dashboard/`.
-It loads the generated dual-LUT model from `results/`, accepts an uploaded
-cycler CSV, replays it through the time-domain 2-RC ECM, and plots measured vs
-simulated voltage, residuals, SOC, parameters along the uploaded profile,
-and dedicated SOC-domain Cell Passport LUT curves.
+Static, GitHub Pages-compatible dashboards live in `dashboard/` (plain HTML +
+inline CSS/JS, Plotly from CDN — no build system or backend):
 
-Run it from the repository root with:
+- **Cell dashboard** (`dashboard/index.html`) — the Cell Passport / Digital Twin
+  dashboard. Loads the generated dual-LUT model from `results/`, accepts an
+  uploaded cycler CSV, replays it through the time-domain 2-RC ECM, and plots
+  measured vs simulated voltage, residuals, SOC, parameters along the uploaded
+  profile, and dedicated SOC-domain Cell Passport LUT curves.
+- **Mission dashboard** (`dashboard/mission.html`) — aircraft mission /
+  pack-load visualization for the **192S4P pack** with **dynamic time playback**.
+  Supports NASA X-57 style and eVTOL demo mission profiles (phase data from
+  `matlab/Aircraft_Mission.m`), plotted against pack voltage, current, power,
+  SOC, altitude, range, C-rate and energy, with aircraft visuals, KPI/telemetry
+  readouts, a phase table, and a mission timeline. Playback includes a
+  Play/Pause/Reset control, a draggable timeline slider, and a **playback speed
+  factor** (`1×`, `5×`, `10×`, `25×`, `50×`, `100×`) that only affects dynamic
+  playback. Without a MATLAB export the profiles are clearly labeled **demo
+  mission profiles** with **browser-side pack estimates**; `Aircraft_Mission.m`
+  can export exact `results/mission_<type>.csv` profiles that the dashboard then
+  replays as-is.
+
+Run them from the repository root with:
 
 ```bash
 python3 -m http.server 8080 --bind 0.0.0.0
 ```
 
-Then open `http://localhost:8080/dashboard/`.
+Then open `http://localhost:8080/dashboard/` (cell) or
+`http://localhost:8080/dashboard/mission.html` (mission).
 
 ### GitHub Pages hosting
 

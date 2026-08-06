@@ -104,6 +104,20 @@
       color: var(--text); padding: 11px 12px; outline: none;
     }
     input[type="range"] { padding: 0; accent-color: #22c55e; }
+    .topnav { margin-bottom: 20px; }
+    .topnav-inner {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+      padding: 12px 16px;
+    }
+    .topnav-brand { font-weight: 900; letter-spacing: -0.02em; font-size: 15px; color: #e5eefb; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .topnav-brand .bolt { color: #fbbf24; }
+    .topnav-links { display: flex; gap: 8px; }
+    .topnav-link {
+      text-decoration: none; color: #cbd5e1; font-size: 13px; font-weight: 800;
+      padding: 8px 14px; border-radius: 999px; border: 1px solid transparent; transition: all .15s ease;
+    }
+    .topnav-link:hover { color: #fff; background: rgba(148,163,184,.12); }
+    .topnav-link.active { color: #04111f; background: linear-gradient(135deg, #7dd3fc, #38bdf8); }
     .file-name { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 16px; overflow-wrap:anywhere; }
     .status { margin-top: 12px; color: #cbd5e1; font-size: 13px; }
     .status strong { color: #86efac; }
@@ -169,6 +183,15 @@
 </head>
 <body>
   <div class="wrap">
+    <nav class="topnav panel">
+      <div class="topnav-inner">
+        <a class="topnav-brand" href="index.html"><span class="bolt">⚡</span> SHP320-35 · 192S4P pack dashboards</a>
+        <div class="topnav-links">
+          <a class="topnav-link active" href="index.html">Cell dashboard</a>
+          <a class="topnav-link" href="mission.html">Mission dashboard</a>
+        </div>
+      </div>
+    </nav>
     <section class="hero">
       <div class="hero-main panel">
         <div class="eyebrow">Cell passport · time-domain digital twin</div>
