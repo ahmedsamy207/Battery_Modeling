@@ -30,6 +30,10 @@ switch lower(missionType)
             m = (t >= tb(p)) & (t < tb(p+1));
             I(m) = -P_kW(p)*1000 / Vnom_pack;      % discharge -> negative
         end
+        % demo altitude [m] and ground-speed [m/s] segment end-values
+        % (the browser mission dashboard uses the same demo assumptions)
+        altSegEnd = [0, 0, 152, 2438, 2438, 15];   % 0 / 0 / 500 ft / 8000 ft / 8000 ft / ~50 ft
+        vSegEnd   = [0, 0, 25,  60,   88,   55];   % m/s (cruise ~172 kt)
     case 'evtol'
         Vnom_pack = 750;
         I_A  = [-14,  -56,  -280,  -200,  -112,  -28,  -14];
@@ -42,6 +46,9 @@ switch lower(missionType)
             m = (t >= tb(p)) & (t < tb(p+1));
             I(m) = I_A(p);
         end
+        % demo altitude [m] and ground-speed [m/s] segment end-values
+        altSegEnd = [0, 0, 15, 300, 300, 30, 0];   % hover takeoff -> 300 m cruise -> hover landing
+        vSegEnd   = [0, 2, 0.5, 50, 60, 15, 0];    % m/s
     otherwise
         error('missionType must be ''x57'' or ''evtol''.');
 end
@@ -124,6 +131,39 @@ eta   = E_del*1000 / E_from_cells * 100;     % DC battery efficiency [%]
 Imax  = max(abs(I));
 Vmin  = min(V); Vmax = max(V);
 SOCmin= min(SOC)*100;
+
+% ---- demo altitude / range / speed + mission CSV export ----------------
+%  The browser mission dashboard (dashboard/mission.html) replays
+%  results/mission_<type>.csv when it exists; otherwise it builds the same
+%  demo assumptions client-side. Altitude and ground speed are DEMO values.
+alt_m  = zeros(size(t));   v_mps = zeros(size(t));
+for p = 1:numel(names)
+    if p == 1
+        a0 = 0;  v0 = 0;
+    else
+        a0 = altSegEnd(p-1);  v0 = vSegEnd(p-1);
+    end
+    a1 = altSegEnd(p);  v1 = vSegEnd(p);
+    m  = (t >= tb(p)) & (t <= tb(p+1));
+    tt = (t(m) - tb(p)) / max(Dur(p), eps);
+    alt_m(m) = a0 + (a1 - a0) .* tt;
+    v_mps(m) = v0 + (v1 - v0) .* tt;
+end
+range_km = cumtrapz(t, v_mps) / 1000;               % integrate ground speed
+P_dem    = -I .* Vnom_pack / 1000;                  % kW, positive = discharge demand
+E_cum    = cumtrapz(t, P_del) / 3.6e6;              % kWh delivered to load
+C_rate   = abs(I) / Q_pack;
+E_rem    = SOC .* Q_pack .* Vnom_pack / 1000;       % kWh remaining (nominal-voltage reference)
+phaseName = cell(size(t));
+for p = 1:numel(names)
+    m = (t >= tb(p)) & (t <= tb(p+1));
+    [phaseName{m}] = deal(names{p});
+end
+MissionTbl = table(t, phaseName, P_dem, V, I, SOC*100, E_cum, alt_m, range_km, v_mps, C_rate, E_rem, ...
+    'VariableNames', {'t_s','phase','P_demand_kW','V_pack','I_pack','SOC_pct', ...
+                      'E_consumed_kWh','alt_m','range_km','v_mps','C_rate','E_remaining_kWh'});
+writetable(MissionTbl, fullfile(resultsDir, sprintf('mission_%s.csv', lower(missionType))));
+fprintf('  Exported mission CSV: results/mission_%s.csv (%d rows)\n', lower(missionType), height(MissionTbl));
 
 % ---- plots ----
 figure('Color','w','Position',[30 30 1000 760]);

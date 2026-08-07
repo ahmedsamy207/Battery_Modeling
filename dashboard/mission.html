@@ -1,0 +1,1409 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Aircraft mission dashboard for the 192S4P battery pack: X-57 and eVTOL demo mission profiles with dynamic time playback." />
+  <title>Aircraft Mission Dashboard · 192S4P Pack</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(15, 28, 48, 0.88);
+      --panel2: rgba(10, 20, 35, 0.92);
+      --border: rgba(148, 163, 184, 0.22);
+      --muted: #94a3b8;
+      --text: #e5eefb;
+      --accent: #22c55e;
+      --accent2: #38bdf8;
+      --warn: #f59e0b;
+      --danger: #fb7185;
+      --chip: rgba(56, 189, 248, 0.12);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(34, 197, 94, 0.18), transparent 30%),
+        radial-gradient(circle at 85% 12%, rgba(56, 189, 248, 0.16), transparent 34%),
+        linear-gradient(135deg, #07111f 0%, #081526 48%, #06111d 100%);
+    }
+    a { color: #7dd3fc; }
+    .wrap { max-width: 1480px; margin: 0 auto; padding: 26px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .hidden { display: none !important; }
+
+    /* ---------- top navigation ---------- */
+    .topnav { margin-bottom: 20px; }
+    .topnav-inner {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+      padding: 12px 16px;
+    }
+    .topnav-brand { font-weight: 900; letter-spacing: -0.02em; font-size: 15px; color: #e5eefb; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .topnav-brand .bolt { color: #fbbf24; }
+    .topnav-links { display: flex; gap: 8px; }
+    .topnav-link {
+      text-decoration: none; color: #cbd5e1; font-size: 13px; font-weight: 800;
+      padding: 8px 14px; border-radius: 999px; border: 1px solid transparent; transition: all .15s ease;
+    }
+    .topnav-link:hover { color: #fff; background: rgba(148,163,184,.12); }
+    .topnav-link.active { color: #04111f; background: linear-gradient(135deg, #7dd3fc, #38bdf8); }
+
+    /* ---------- hero ---------- */
+    .hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr); gap: 22px; align-items: stretch; margin-bottom: 22px; }
+    .hero-main { padding: 30px; position: relative; overflow: hidden; }
+    .hero-main:after {
+      content: ""; position: absolute; inset: auto -120px -140px auto;
+      width: 380px; height: 380px; border-radius: 999px;
+      background: radial-gradient(circle, rgba(56,189,248,.16), transparent 65%);
+      pointer-events: none;
+    }
+    .eyebrow { color: #86efac; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; font-weight: 800; }
+    h1 { margin: 10px 0 12px; font-size: clamp(30px, 4.6vw, 54px); line-height: 0.98; letter-spacing: -0.045em; }
+    .subtitle { max-width: 900px; color: #cbd5e1; font-size: 16.5px; line-height: 1.6; margin: 0; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .chip {
+      padding: 7px 11px; border: 1px solid rgba(56,189,248,.24); background: var(--chip);
+      color: #bae6fd; border-radius: 999px; font-size: 12px; font-weight: 800;
+    }
+    .chip.warn { border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.1); color: #fcd34d; }
+    .chip.ok { border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.1); color: #86efac; }
+    .packpass { padding: 22px; }
+    .packpass-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+    .battery-icon {
+      width: 64px; height: 36px; border: 3px solid #93c5fd; border-radius: 8px; position: relative;
+      box-shadow: inset 0 0 0 5px rgba(59,130,246,.12); flex: 0 0 auto;
+    }
+    .battery-icon:before { content:""; position:absolute; right:-10px; top:9px; width:6px; height:14px; border-radius:2px; background:#93c5fd; }
+    .battery-icon:after { content:""; position:absolute; inset:5px 20px 5px 5px; background: linear-gradient(90deg,#38bdf8,#a3e635); border-radius:4px; }
+    .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .spec { padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: rgba(15,23,42,.5); }
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .value { font-weight: 900; font-size: 16px; }
+    .packpass .note { margin-top: 14px; }
+
+    /* ---------- aircraft cards ---------- */
+    .aircraft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .aircraft-card {
+      padding: 20px 22px; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+      border: 2px solid rgba(148,163,184,.18);
+    }
+    .aircraft-card:hover { transform: translateY(-2px); border-color: rgba(125,211,252,.45); }
+    .aircraft-card.active { border-color: #38bdf8; box-shadow: 0 0 0 1px rgba(56,189,248,.55), 0 18px 50px rgba(56,189,248,.14); }
+    .aircraft-card.active .select-dot { background: #38bdf8; box-shadow: 0 0 0 4px rgba(56,189,248,.25); }
+    .aircraft-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .aircraft-head h2 { margin: 0; font-size: 20px; }
+    .select-dot { width: 14px; height: 14px; border-radius: 999px; border: 2px solid #94a3b8; flex: 0 0 auto; }
+    .aircraft-svg { width: 100%; max-width: 460px; height: 120px; display: block; margin: 6px auto 4px; }
+    .aircraft-tagline { color: #cbd5e1; font-size: 13px; line-height: 1.5; margin: 6px 0 12px; }
+    .aircraft-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+    .aircraft-spec { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; border-top: 1px dashed rgba(148,163,184,.2); padding-top: 7px; }
+    .aircraft-spec b { color: #e5eefb; }
+
+    /* ---------- controls ---------- */
+    .controls { padding: 18px; margin-bottom: 20px; }
+    .controls-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 14px; align-items: end; }
+    .control label { display: block; color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 7px; }
+    select, input[type="number"], input[type="range"] {
+      width: 100%; border-radius: 12px; border: 1px solid var(--border); background: rgba(2, 6, 23, .65);
+      color: var(--text); padding: 11px 12px; outline: none; font-size: 14px;
+    }
+    input[type="range"] { padding: 0; accent-color: #22c55e; }
+    .controls-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; margin-bottom: 14px; }
+    .play-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn, button {
+      border: 0; border-radius: 14px; padding: 12px 16px; font-weight: 800; color: #04111f;
+      background: linear-gradient(135deg, #86efac, #22c55e); cursor: pointer;
+      box-shadow: 0 12px 30px rgba(34, 197, 94, .22);
+      transition: transform .15s ease, filter .15s ease, opacity .15s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; font-size: 14px;
+    }
+    .btn.secondary, button.secondary { color: var(--text); background: rgba(148,163,184,.12); border: 1px solid var(--border); box-shadow: none; }
+    .btn.blue { background: linear-gradient(135deg, #7dd3fc, #38bdf8); box-shadow: 0 12px 30px rgba(56,189,248,.18); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button:hover:not(:disabled), .aircraft-card:hover { filter: brightness(1.04); }
+    .timeline-group { flex: 1 1 360px; min-width: 280px; }
+    .timeline-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .timeline-meta .label { margin: 0; }
+    #timeReadout { font-weight: 900; font-variant-numeric: tabular-nums; color: #fbbf24; }
+    .status-line { margin-top: 12px; color: #cbd5e1; font-size: 13px; }
+    .status-line strong { color: #86efac; }
+    .error { color: #fecdd3; background: rgba(244,63,94,.12); border: 1px solid rgba(244,63,94,.32); border-radius: 12px; padding: 10px; display: none; margin-top: 12px; }
+
+    /* ---------- mission progress ---------- */
+    .progress-panel { padding: 18px; margin-bottom: 20px; }
+    .progress-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px; }
+    .progress-block h3 { margin: 0 0 10px; font-size: 14px; color: #cbd5e1; letter-spacing: .04em; }
+    .route {
+      position: relative; height: 96px; border-radius: 16px; overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(15,23,42,.9), rgba(15,23,42,.55) 55%, rgba(2,6,23,.85)),
+        linear-gradient(180deg, rgba(125,211,252,.18), rgba(34,197,94,.10));
+      border: 1px solid var(--border);
+    }
+    .route-grid {
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(148,163,184,.12) calc(10% - 1px) 10%);
+    }
+    .route-label { position: absolute; bottom: 6px; font-size: 11px; color: var(--muted); }
+    .route-label.r0 { left: 10px; } .route-label.r1 { right: 10px; }
+    .aircraft-marker {
+      position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%);
+      transition: left .12s linear; width: 44px; height: 44px; will-change: left;
+      filter: drop-shadow(0 4px 10px rgba(56,189,248,.5));
+    }
+    .aircraft-marker svg { width: 44px; height: 44px; }
+    .altitude-svg { width: 100%; height: 96px; display: block; border: 1px solid var(--border); border-radius: 16px; background: rgba(2,6,23,.4); }
+    .phasebar-wrap { margin-top: 18px; }
+    .phasebar { position: relative; display: flex; height: 26px; border-radius: 13px; overflow: hidden; border: 1px solid var(--border); }
+    .phasebar .seg { height: 100%; position: relative; }
+    .phasebar .seg span {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #04111f; font-size: 10.5px; font-weight: 900; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: clip;
+    }
+    .phasebar-marker {
+      position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,.8);
+      left: 0%; transition: left .12s linear; pointer-events: none;
+    }
+    .phase-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .phase-chip { padding: 6px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; border: 1px solid rgba(148,163,184,.25); color: #cbd5e1; background: rgba(15,23,42,.45); transition: all .15s ease; }
+    .phase-chip.active { color: #04111f; border-color: transparent; transform: translateY(-1px); }
+    .phase-chip .dur { opacity: .7; font-weight: 600; }
+
+    /* ---------- KPI + telemetry ---------- */
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .kpi { padding: 16px; background: var(--panel2); border: 1px solid var(--border); border-radius: 18px; }
+    .kpi .label { text-transform: uppercase; letter-spacing: .08em; }
+    .kpi .value { font-size: 23px; letter-spacing: -0.03em; line-height: 1.15; }
+    .kpi .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .kpi .value .unit { font-size: 13px; color: var(--muted); font-weight: 700; }
+    .telemetry { padding: 18px; margin-bottom: 20px; }
+    .telemetry-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+    .telemetry-head h2 { margin: 0; font-size: 18px; }
+    .tele-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; }
+    .tele-card { padding: 12px; border-radius: 14px; background: rgba(15,23,42,.56); border: 1px solid var(--border); }
+    .tele-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    .tele-card .value { font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .tele-card .value .unit { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .tele-card.hot .value { color: #fbbf24; }
+    .tele-card.soc .value { color: #a3e635; }
+    .tele-card.phase .value { font-size: 15px; }
+
+    /* ---------- plots ---------- */
+    .plots-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .chart-panel { padding: 14px; }
+    .chart-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 4px 6px 8px; }
+    .chart-title h2 { margin: 0; font-size: 16px; }
+    .chart-desc { margin: 4px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+    .plot { width: 100%; height: 300px; }
+    #plotPhase { height: 130px; }
+    .phase-table-panel { padding: 18px; margin-bottom: 20px; }
+    .phase-table-panel h2 { margin: 0 0 12px; font-size: 18px; }
+    table.phase-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .phase-table th, .phase-table td { padding: 9px 8px; border-bottom: 1px solid rgba(148,163,184,.14); text-align: right; white-space: nowrap; }
+    .phase-table th:first-child, .phase-table td:first-child { text-align: left; }
+    .phase-table th:nth-child(2), .phase-table td:nth-child(2) { text-align: left; }
+    .phase-table th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .phase-table td.phase-name { color: #e5eefb; font-weight: 800; }
+    .phase-table tr { transition: background .15s ease; }
+    .phase-table tr.current { background: rgba(56,189,248,.12); }
+    .phase-table tr.current td.phase-name { color: #7dd3fc; }
+    .phase-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; margin-right: 8px; vertical-align: 1px; }
+
+    /* ---------- assumptions ---------- */
+    .assumptions { padding: 18px; margin-bottom: 20px; }
+    .assumptions h2 { margin: 0 0 12px; font-size: 18px; }
+    .assumptions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .assump-block h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: #86efac; }
+    .assump-block ul { margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 13px; line-height: 1.7; }
+    .assump-block .note { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 8px; }
+    .notice {
+      margin-top: 14px; padding: 12px 14px; border-radius: 14px; font-size: 13px; line-height: 1.55;
+      background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3); color: #fde68a;
+    }
+    .footer { color: var(--muted); padding: 20px 4px 6px; font-size: 12px; }
+
+    @media (max-width: 1100px) {
+      .hero, .progress-grid, .assumptions-grid, .plots-grid { grid-template-columns: 1fr; }
+      .controls-grid { grid-template-columns: repeat(2, 1fr); }
+      .aircraft-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .wrap { padding: 14px; }
+      .kpis, .spec-grid { grid-template-columns: 1fr 1fr; }
+      .controls-grid { grid-template-columns: 1fr; }
+      .plot { height: 260px; }
+      .aircraft-specs { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="topnav panel">
+      <div class="topnav-inner">
+        <a class="topnav-brand" href="index.html"><span class="bolt">⚡</span> SHP320-35 · 192S4P pack dashboards</a>
+        <div class="topnav-links">
+          <a class="topnav-link" href="index.html">Cell dashboard</a>
+          <a class="topnav-link active" href="mission.html">Mission dashboard</a>
+        </div>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-main panel">
+        <div class="eyebrow">Aircraft mission · 192S4P pack load</div>
+        <h1>Mission dashboard &amp; dynamic playback</h1>
+        <p class="subtitle">
+          Fly the 192S4P pack through a NASA X-57 style cruise mission or a representative eVTOL stress mission,
+          replaying pack voltage, current, power, SOC, altitude and range along the profile with a time cursor.
+        </p>
+        <div class="hero-actions">
+          <button id="heroPlayBtn" class="blue">▶ Play mission</button>
+          <button id="heroResetBtn" class="secondary">↺ Reset to t=0</button>
+        </div>
+        <div class="chiprow" id="heroChips">
+          <span class="chip ok">192S4P pack</span>
+          <span class="chip warn" id="sourceChip">demo mission profile</span>
+          <span class="chip" id="methodChip">browser-side pack estimate</span>
+          <span class="chip">static browser estimate</span>
+        </div>
+      </div>
+      <aside class="packpass panel">
+        <div class="packpass-title">
+          <div>
+            <div class="eyebrow">Pack passport</div>
+            <h2 style="margin:6px 0 0">192S4P pack</h2>
+          </div>
+          <div class="battery-icon" aria-hidden="true"></div>
+        </div>
+        <div class="spec-grid">
+          <div class="spec"><div class="label">Cells / strings</div><div class="value">192S · 4P</div></div>
+          <div class="spec"><div class="label">Nominal capacity</div><div class="value">≈ 140 Ah</div></div>
+          <div class="spec"><div class="label">Nominal voltage</div><div class="value">≈ 700.8 V</div></div>
+          <div class="spec"><div class="label">Nominal energy</div><div class="value">≈ 98.1 kWh</div></div>
+          <div class="spec"><div class="label">Cell window</div><div class="value">2.75–4.20 V</div></div>
+          <div class="spec"><div class="label">2C current limit</div><div class="value">≈ 280 A</div></div>
+        </div>
+        <div class="note">Scaling rules from <code>matlab/step5_BuildPackParams.m</code> (Ns = 192, Np = 4, per-cell 35 Ah · 3.65 V).</div>
+      </aside>
+    </section>
+
+    <section class="aircraft-grid">
+      <div class="aircraft-card panel" id="cardX57" role="button" tabindex="0" aria-pressed="true">
+        <div class="aircraft-head">
+          <h2>NASA X-57 Maxwell</h2>
+          <span class="select-dot"></span>
+        </div>
+        <svg class="aircraft-svg" viewBox="0 0 240 110" aria-label="X-57 aircraft silhouette (top view)">
+          <ellipse cx="120" cy="55" rx="66" ry="8.5" fill="rgba(125,211,252,.16)" stroke="#7dd3fc" stroke-width="1.6"/>
+          <path d="M186 55 l16 -16 v32 z" fill="rgba(125,211,252,.22)" stroke="#7dd3fc" stroke-width="1.4"/>
+          <circle cx="54" cy="55" r="3.4" fill="#7dd3fc"/>
+          <rect x="52" y="33" width="136" height="44" rx="10" fill="rgba(125,211,252,.12)" stroke="#7dd3fc" stroke-width="1.6"/>
+          <g fill="#04111f">
+            <circle cx="70" cy="41" r="3.6"/><circle cx="90" cy="41" r="3.6"/><circle cx="110" cy="41" r="3.6"/>
+            <circle cx="130" cy="41" r="3.6"/><circle cx="150" cy="41" r="3.6"/><circle cx="170" cy="41" r="3.6"/>
+            <circle cx="70" cy="69" r="3.6"/><circle cx="90" cy="69" r="3.6"/><circle cx="110" cy="69" r="3.6"/>
+            <circle cx="130" cy="69" r="3.6"/><circle cx="150" cy="69" r="3.6"/><circle cx="170" cy="69" r="3.6"/>
+          </g>
+          <circle cx="52" cy="37" r="7.5" fill="none" stroke="#fbbf24" stroke-width="1.8"/>
+          <circle cx="188" cy="73" r="7.5" fill="none" stroke="#fbbf24" stroke-width="1.8"/>
+          <text x="120" y="103" text-anchor="middle" font-size="9" fill="#7dd3fc">14 electric motors · high-wing cruise aircraft</text>
+        </svg>
+        <p class="aircraft-tagline">Cruise-flight mission — power demand from the NASA X-57 Maxwell profile (Battery_Evaluation_EATS Table 1), as scripted in <code>matlab/Aircraft_Mission.m</code>.</p>
+        <div class="aircraft-specs">
+          <div class="aircraft-spec"><span>Peak demand</span><b>≈ 189 kW</b></div>
+          <div class="aircraft-spec"><span>Cruise power</span><b>≈ 142 kW</b></div>
+          <div class="aircraft-spec"><span>Cruise altitude</span><b>8,000 ft</b></div>
+          <div class="aircraft-spec"><span>Duration</span><b>≈ 25 min</b></div>
+        </div>
+      </div>
+      <div class="aircraft-card panel" id="cardEvtol" role="button" tabindex="0" aria-pressed="false">
+        <div class="aircraft-head">
+          <h2>eVTOL / UAM</h2>
+          <span class="select-dot"></span>
+        </div>
+        <svg class="aircraft-svg" viewBox="0 0 240 110" aria-label="eVTOL multirotor silhouette (top view)">
+          <ellipse cx="120" cy="55" rx="36" ry="12" fill="rgba(125,211,252,.18)" stroke="#7dd3fc" stroke-width="1.6"/>
+          <line x1="52" y1="27" x2="188" y2="27" stroke="rgba(125,211,252,.55)" stroke-width="2"/>
+          <line x1="52" y1="83" x2="188" y2="83" stroke="rgba(125,211,252,.55)" stroke-width="2"/>
+          <g fill="none" stroke="#7dd3fc" stroke-width="1.6">
+            <circle cx="60" cy="27" r="11"/><circle cx="105" cy="27" r="11"/><circle cx="150" cy="27" r="11"/><circle cx="180" cy="27" r="11"/>
+            <circle cx="60" cy="83" r="11"/><circle cx="105" cy="83" r="11"/><circle cx="150" cy="83" r="11"/><circle cx="180" cy="83" r="11"/>
+          </g>
+          <g fill="#04111f">
+            <circle cx="60" cy="27" r="3"/><circle cx="105" cy="27" r="3"/><circle cx="150" cy="27" r="3"/><circle cx="180" cy="27" r="3"/>
+            <circle cx="60" cy="83" r="3"/><circle cx="105" cy="83" r="3"/><circle cx="150" cy="83" r="3"/><circle cx="180" cy="83" r="3"/>
+          </g>
+          <text x="120" y="103" text-anchor="middle" font-size="9" fill="#7dd3fc">8 rotors · lift + cruise multirotor</text>
+        </svg>
+        <p class="aircraft-tagline">Representative eVTOL / urban-air-mobility stress profile — 2C hover-takeoff peak, as scripted in <code>matlab/Aircraft_Mission.m</code>.</p>
+        <div class="aircraft-specs">
+          <div class="aircraft-spec"><span>Hover takeoff peak</span><b>≈ 210 kW · 2C</b></div>
+          <div class="aircraft-spec"><span>Cruise power</span><b>≈ 84 kW</b></div>
+          <div class="aircraft-spec"><span>Cruise altitude</span><b>≈ 300 m</b></div>
+          <div class="aircraft-spec"><span>Duration</span><b>≈ 30 min</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls panel">
+      <div class="controls-row">
+        <div class="control" style="min-width:220px; flex:0 1 260px;">
+          <label for="missionSelect">Mission</label>
+          <select id="missionSelect">
+            <option value="x57">X-57 Maxwell (cruise mission)</option>
+            <option value="evtol">eVTOL / UAM (stress mission)</option>
+          </select>
+        </div>
+        <div class="play-group">
+          <button id="playBtn" class="blue">▶ Play</button>
+          <button id="resetBtn" class="secondary">↺ Reset</button>
+        </div>
+        <div class="control" style="flex:0 1 200px;">
+          <label for="speedSelect">Playback speed</label>
+          <select id="speedSelect">
+            <option value="1">1× real time</option>
+            <option value="5">5×</option>
+            <option value="10" selected>10×</option>
+            <option value="25">25×</option>
+            <option value="50">50×</option>
+            <option value="100">100×</option>
+          </select>
+        </div>
+      </div>
+      <div class="controls-row">
+        <div class="timeline-group">
+          <div class="timeline-meta">
+            <label class="label" for="timeline">Mission timeline</label>
+            <span id="timeReadout">00:00 / 00:00</span>
+          </div>
+          <input id="timeline" type="range" min="0" max="0" value="0" step="1" />
+        </div>
+      </div>
+      <div class="controls-grid" id="assumptionGrid">
+        <div class="control">
+          <label for="ambientT">Ambient / pack temperature [°C]</label>
+          <input id="ambientT" type="number" min="-20" max="60" step="1" value="25" />
+        </div>
+        <div class="control">
+          <label for="initSoc">Initial SOC [%]</label>
+          <input id="initSoc" type="number" min="5" max="100" step="1" value="100" />
+        </div>
+        <div class="control">
+          <label for="reserveSoc">Reserve SOC floor [%]</label>
+          <input id="reserveSoc" type="number" min="0" max="50" step="1" value="20" />
+        </div>
+        <div class="control">
+          <label for="loadFactor">Load factor (× phase power)</label>
+          <input id="loadFactor" type="number" min="0.5" max="1.3" step="0.05" value="1" />
+        </div>
+      </div>
+      <div class="status-line" id="statusLine">Loading mission profiles…</div>
+      <div id="errorBox" class="error"></div>
+    </section>
+
+    <section class="progress-panel panel">
+      <div class="progress-grid">
+        <div class="progress-block">
+          <h3>Route progress — distance travelled</h3>
+          <div class="route">
+            <div class="route-grid"></div>
+            <span class="route-label r0" id="routeLabel0">0 km</span>
+            <span class="route-label r1" id="routeLabel1">—</span>
+            <span class="aircraft-marker" id="aircraftMarker">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <g transform="rotate(45 24 24)">
+                  <path d="M24 4 L29 20 L45 24 L29 28 L24 44 L19 28 L3 24 L19 20 Z" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.2"/>
+                </g>
+              </svg>
+            </span>
+          </div>
+        </div>
+        <div class="progress-block">
+          <h3>Altitude profile — aircraft position</h3>
+          <svg class="altitude-svg" id="altSvg" viewBox="0 0 600 110" preserveAspectRatio="none">
+            <line x1="6" y1="104" x2="594" y2="104" stroke="rgba(148,163,184,.4)" stroke-width="1"/>
+            <path id="altPath" d="M6 104 L594 104" fill="none" stroke="#22d3ee" stroke-width="2"/>
+            <circle id="altDot" cx="6" cy="104" r="5" fill="#fbbf24" stroke="#04111f" stroke-width="1.5"/>
+            <text id="altText" x="10" y="16" fill="#cbd5e1" font-size="13" font-weight="700">0 m</text>
+          </svg>
+        </div>
+      </div>
+      <div class="phasebar-wrap">
+        <div class="phasebar" id="phaseBar"></div>
+        <div class="phasebar-marker" id="phaseBarMarker" style="left:0%"></div>
+        <div class="phase-chips" id="phaseChips"></div>
+      </div>
+    </section>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="telemetry panel">
+      <div class="telemetry-head">
+        <h2>Live telemetry at current mission time</h2>
+        <span class="chip" id="phaseStateChip">—</span>
+      </div>
+      <div class="tele-grid" id="teleGrid"></div>
+    </section>
+
+    <section class="plots-grid">
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Pack voltage</h2><p class="chart-desc">Browser-side estimate: V = Ns × (OCV(SOC,T) − R0(T) × I/Np). No RC dynamics.</p></div><span class="chip" id="chipV">estimate</span></div>
+        <div id="plotV" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Pack current</h2><p class="chart-desc">Discharge shown positive; derived from demand power / V_conv (750 V, MATLAB convention).</p></div><span class="chip" id="chipI">A</span></div>
+        <div id="plotI" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Pack power demand</h2><p class="chart-desc">Phase-colored background. Nominal phase powers from <code>matlab/Aircraft_Mission.m</code>.</p></div><span class="chip" id="chipP">kW</span></div>
+        <div id="plotP" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>State of charge</h2><p class="chart-desc">Coulomb counting with per-temperature pack capacity (Capacity_vs_T.csv × Np).</p></div><span class="chip" id="chipSOC">%</span></div>
+        <div id="plotSOC" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Altitude</h2><p class="chart-desc">Demo profile (ft on right axis).</p></div><span class="chip" id="chipAlt">m / ft</span></div>
+        <div id="plotAlt" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Range / distance</h2><p class="chart-desc">Integrated demo ground speed.</p></div><span class="chip" id="chipRange">km</span></div>
+        <div id="plotRange" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>C-rate</h2><p class="chart-desc">|I| / pack capacity. 2C = ≈ 280 A limit.</p></div><span class="chip" id="chipC">C</span></div>
+        <div id="plotC" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Energy</h2><p class="chart-desc">Delivered energy vs energy remaining in the pack (at nominal voltage).</p></div><span class="chip" id="chipE">kWh</span></div>
+        <div id="plotE" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Aircraft speed</h2><p class="chart-desc">Demo ground-speed profile.</p></div><span class="chip" id="chipVelo">m/s</span></div>
+        <div id="plotVelo" class="plot"></div>
+      </div>
+      <div class="chart-panel panel">
+        <div class="chart-title"><div><h2>Mission phase timeline</h2><p class="chart-desc">Phase durations along the mission. Cursor follows playback.</p></div><span class="chip">phases</span></div>
+        <div id="plotPhase" class="plot"></div>
+      </div>
+    </section>
+
+    <section class="phase-table-panel panel">
+      <h2>Mission phases</h2>
+      <div style="overflow-x:auto;">
+        <table class="phase-table" id="phaseTable">
+          <thead>
+            <tr>
+              <th>Phase</th><th>Start</th><th>End</th><th>Duration</th>
+              <th>Nominal P [kW]</th><th>Peak P [kW]</th><th>Altitude change [m]</th>
+              <th>Range [km]</th><th>Energy [kWh]</th><th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="phaseTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="assumptions panel">
+      <h2>Assumptions &amp; method</h2>
+      <div class="assumptions-grid">
+        <div class="assump-block">
+          <h3>Profile source</h3>
+          <ul id="assumpSourceList">
+            <li><b>Demo mission profile</b> — generated in the browser at 1 s resolution from the phase definitions in <code>matlab/Aircraft_Mission.m</code>.</li>
+            <li>X-57: phase powers <code>[34.0, 187.8, 189.3, 156.8, 141.6, 31.4] kW</code> with durations <code>[300, 30, 15, 446, 417, 293] s</code> (NASA X-57 Maxwell profile, Battery_Evaluation_EATS Table 1).</li>
+            <li>eVTOL: phase currents <code>[-14, -56, -280, -200, -112, -28, -14] A</code> × 750 V with durations <code>[300, 180, 60, 180, 720, 180, 180] s</code>.</li>
+            <li>Altitude, ground speed and range are <b>demo assumptions</b> (X-57: 8,000 ft cruise at ≈172 kt; eVTOL: ≈300 m cruise at ≈60 m/s).</li>
+            <li>If <code>results/mission_x57.csv</code> / <code>results/mission_evtol.csv</code> (exported by <code>Aircraft_Mission.m</code>) exist, the page uses that exact MATLAB export instead.</li>
+          </ul>
+        </div>
+        <div class="assump-block">
+          <h3>Pack scaling (step5_BuildPackParams.m)</h3>
+          <ul>
+            <li>192 cells series × 4 strings parallel → <b>192S4P</b>.</li>
+            <li>Cell: ≈ 35 Ah, 3.65 V nominal, 2.75–4.20 V window.</li>
+            <li>Pack: ≈ 140 Ah, ≈ 700.8 V, ≈ 98.1 kWh.</li>
+            <li>Capacity per temperature from <code>results/Capacity_vs_T.csv</code> × Np (robust fallback: 34.94 Ah @ 25 °C).</li>
+            <li>2C current limit ≈ 2 × 140 A ≈ 280 A pack (as in Aircraft_Mission.m).</li>
+          </ul>
+        </div>
+        <div class="assump-block">
+          <h3>Browser-side pack estimate</h3>
+          <ul>
+            <li>Pack current from demand power: I = P × 1000 / V_conv, V_conv = 750 V (MATLAB conversion convention).</li>
+            <li>SOC by Coulomb counting: SOC(t) = SOC₀ − ∫I dt / Q_pack(T), floor at 0.</li>
+            <li>OCV(SOC, T) interpolated from <code>results/OCV_2D_SOCxT.csv</code> (robust fallback: built-in reference curve).</li>
+            <li>Cell resistance R0(T) ≈ representative LUT value (≈1.6–3.2 mΩ across SOC/T; 2.2 mΩ @ 25 °C).</li>
+            <li>Pack voltage = Ns × (OCV − R0 × I/Np). No RC dynamics, no thermal model, no Simscape — a <b>static browser estimate</b>.</li>
+          </ul>
+        </div>
+        <div class="assump-block">
+          <h3>Playback &amp; controls</h3>
+          <ul>
+            <li><code>requestAnimationFrame</code> playback loop; speed factor applies to dynamic playback only.</li>
+            <li>Timeline slider can be dragged at any time; plots and readouts follow the selected mission time.</li>
+            <li>Playback stops automatically at mission end.</li>
+            <li>Assumption changes (temperature, initial SOC, reserve floor, load factor) rebuild the demo profile and reset to t = 0. They apply to demo profiles only.</li>
+            <li>Reserve margin is carried as the SOC floor (default 20 %); shown as reserve energy in the KPIs.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="notice" id="methodNotice">
+        This page is a <b>static browser dashboard</b> (GitHub Pages-compatible). Mission profiles are <b>demo mission profiles</b>
+        and pack quantities are <b>browser-side pack estimates</b> — not high-fidelity Simscape simulation. For exact Simscape
+        results, run <code>matlab/Aircraft_Mission.m</code> and drop the exported <code>results/mission_&lt;type&gt;.csv</code> files next to the other result artifacts.
+      </div>
+    </section>
+
+    <div class="footer">Built from repository artifacts: <code>results/Capacity_vs_T.csv</code>, <code>results/OCV_2D_SOCxT.csv</code>, and the phase definitions in <code>matlab/Aircraft_Mission.m</code> · static build · Plotly CDN.</div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ============================================================
+  //  Pack constants (matlab/step5_BuildPackParams.m + spec sheet)
+  // ============================================================
+  const PACK = {
+    Ns: 192, Np: 4,
+    cellAh: 35, cellVnom: 3.65,
+    packAhNom: 140, packVnom: 700.8, packKWh: 98.1,
+    Vconv: 750,                       // MATLAB conversion voltage used by Aircraft_Mission.m
+    cRateLimit: 2
+  };
+
+  // ============================================================
+  //  Demo mission definitions (phase data from matlab/Aircraft_Mission.m)
+  //  alt [m], v [m/s] are DEMO assumptions.
+  // ============================================================
+  const MISSION_DEFS = {
+    x57: {
+      key: 'x57',
+      name: 'X-57 Maxwell',
+      phases: [
+        { name: 'Taxi',       dur: 300, P: 34.0,  alt0: 0,    alt1: 0,    v0: 0,  v1: 0,  color: '#94a3b8', note: 'Ground taxi at low power' },
+        { name: 'MotorCheck', dur: 30,  P: 187.8, alt0: 0,    alt1: 0,    v0: 0,  v1: 0,  color: '#a78bfa', note: 'Full-power propulsion motor check' },
+        { name: 'TakeOff',    dur: 15,  P: 189.3, alt0: 0,    alt1: 152,  v0: 0,  v1: 25, color: '#f59e0b', note: 'Liftoff, initial climb to ≈500 ft' },
+        { name: 'Climb',      dur: 446, P: 156.8, alt0: 152,  alt1: 2438, v0: 25, v1: 60, color: '#38bdf8', note: 'Climb to 8,000 ft cruise altitude' },
+        { name: 'Cruise',     dur: 417, P: 141.6, alt0: 2438, alt1: 2438, v0: 88, v1: 88, color: '#22c55e', note: 'Level cruise ≈172 kt' },
+        { name: 'Descent',    dur: 293, P: 31.4,  alt0: 2438, alt1: 15,   v0: 88, v1: 55, color: '#f472b6', note: 'Powered descent to touchdown' }
+      ]
+    },
+    evtol: {
+      key: 'evtol',
+      name: 'eVTOL / UAM',
+      phases: [
+        { name: 'Idle',     dur: 300, P: 10.5,  alt0: 0,   alt1: 0,   v0: 0, v1: 0,   color: '#64748b', note: 'Pre-flight idle (≈14 A)' },
+        { name: 'Taxi',     dur: 180, P: 42.0,  alt0: 0,   alt1: 0,   v0: 0, v1: 2,   color: '#94a3b8', note: 'Ground taxi (≈56 A)' },
+        { name: 'TakeOff',  dur: 60,  P: 210.0, alt0: 0,   alt1: 15,  v0: 0, v1: 0.5, color: '#f59e0b', note: 'Hover takeoff — 2C peak (≈280 A)' },
+        { name: 'Climb',    dur: 180, P: 150.0, alt0: 15,  alt1: 300, v0: 1, v1: 50,  color: '#38bdf8', note: 'Vertical-to-forward transition climb' },
+        { name: 'Cruise',   dur: 720, P: 84.0,  alt0: 300, alt1: 300, v0: 60, v1: 60, color: '#22c55e', note: 'Forward cruise ≈60 m/s (≈117 kt)' },
+        { name: 'Descent',  dur: 180, P: 21.0,  alt0: 300, alt1: 30,  v0: 50, v1: 15, color: '#a78bfa', note: 'Powered descent' },
+        { name: 'Landing',  dur: 180, P: 10.5,  alt0: 30,  alt1: 0,   v0: 5, v1: 0,   color: '#fb7185', note: 'Hover landing (≈14 A)' }
+      ]
+    }
+  };
+
+  const FALLBACK_OCV = [
+    [0.00, 2.9285], [0.05, 3.1777], [0.10, 3.2719], [0.20, 3.4095], [0.30, 3.5367],
+    [0.40, 3.6421], [0.50, 3.7606], [0.60, 3.8593], [0.70, 3.9325], [0.80, 4.0673],
+    [0.90, 4.0853], [0.95, 4.1010], [1.00, 4.1694]
+  ];
+  const FALLBACK_CAP = [[15, 33.8961], [25, 34.9443], [45, 35.2611]];
+  const R0_TABLE = [[15, 2.9e-3], [25, 2.2e-3], [45, 1.75e-3]];   // Ω per cell, representative LUT values
+  const CSV_PALETTE = ['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa', '#f472b6', '#fb7185', '#22d3ee', '#94a3b8', '#4ade80', '#c084fc'];
+
+  // ============================================================
+  //  State
+  // ============================================================
+  const state = {
+    assets: { capacity: null, ocv: null },
+    profile: null,            // current mission profile (arrays at 1 s)
+    stats: null,              // per-phase statistics
+    mission: 'x57',
+    t: 0,
+    playing: false,
+    speed: 10,
+    raf: null,
+    lastTs: 0,
+    lastCursor: 0,
+    plotShapes: {}            // base shapes (phase bands) per plot id
+  };
+
+  const PLOT_IDS = ['plotV', 'plotI', 'plotP', 'plotSOC', 'plotAlt', 'plotRange', 'plotC', 'plotE', 'plotVelo', 'plotPhase'];
+  const TIME_UNIT = { plotPhase: 'min' };   // all others use hours
+  const BANDED_PLOTS = { plotP: 1, plotSOC: 1, plotAlt: 1 };
+
+  const $ = (id) => document.getElementById(id);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+  function fmt(x, d = 1) {
+    if (!Number.isFinite(x)) return '—';
+    if (Math.abs(x) >= 1000) return x.toFixed(0);
+    if (Math.abs(x) >= 100) return x.toFixed(0);
+    return x.toFixed(d);
+  }
+  function fmtHMS(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    const mm = String(m).padStart(2, '0'), ss = String(s).padStart(2, '0');
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  }
+  function showError(msg) {
+    const box = $('errorBox');
+    box.textContent = msg;
+    box.style.display = 'block';
+    console.error(msg);
+  }
+  function clearError() { $('errorBox').style.display = 'none'; $('errorBox').textContent = ''; }
+
+  // ============================================================
+  //  CSV / fetch helpers (same parser family as dashboard/index.html)
+  // ============================================================
+  function parseCSV(text) {
+    text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = text.split('\n').filter(l => l.trim().length);
+    const parseLine = (line) => {
+      const out = []; let cur = ''; let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    };
+    const headers = parseLine(lines[0]);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = parseLine(lines[i]);
+      if (cells.length === 1 && cells[0] === '') continue;
+      const row = {};
+      for (let j = 0; j < headers.length; j++) row[headers[j]] = cells[j] ?? '';
+      rows.push(row);
+    }
+    return { headers, rows };
+  }
+
+  async function fetchText(path) {
+    const res = await fetch(path, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Cannot load ${path} (${res.status})`);
+    return await res.text();
+  }
+
+  function interp1(x, xp, fp) {
+    if (!xp || !fp || xp.length === 0) return NaN;
+    if (x <= xp[0]) return fp[0];
+    const n = xp.length;
+    if (x >= xp[n - 1]) return fp[n - 1];
+    let i = 0;
+    while (i < n - 2 && xp[i + 1] < x) i++;
+    const w = (x - xp[i]) / (xp[i + 1] - xp[i]);
+    return fp[i] * (1 - w) + fp[i + 1] * w;
+  }
+
+  function parseCapacity(text) {
+    const { headers, rows } = parseCSV(text);
+    const tH = headers.find(h => /T/i.test(h)) || headers[0];
+    const qH = headers.find(h => /Q|capacity|Ah/i.test(h)) || headers[1];
+    const points = rows.map(r => ({ T: Number(r[tH]), Q: Number(r[qH]) }))
+      .filter(p => Number.isFinite(p.T) && Number.isFinite(p.Q)).sort((a, b) => a.T - b.T);
+    if (points.length === 0) throw new Error('Capacity_vs_T.csv did not contain numeric T/Q columns.');
+    return points;
+  }
+
+  function parseOcv(text) {
+    const { headers, rows } = parseCSV(text);
+    const socH = headers.find(h => /^soc/i.test(h)) || headers[0];
+    const socGrid = rows.map(r => Number(r[socH]));
+    const temps = [];
+    const curves = {};
+    for (const h of headers) {
+      const m = h.match(/OCVavg_V_(-?\d+(?:\.\d+)?)C$/i);
+      if (!m) continue;
+      const T = Number(m[1]);
+      temps.push(T);
+      curves[T] = rows.map(r => Number(r[h]));
+    }
+    temps.sort((a, b) => a - b);
+    if (temps.length === 0) throw new Error('OCV_2D_SOCxT.csv did not contain OCVavg_V_<T>C columns.');
+    return { socGrid, temps, curves };
+  }
+
+  // ============================================================
+  //  Model lookups (with robust fallbacks)
+  // ============================================================
+  function capacityAt(T) {
+    const pts = state.assets.capacity || FALLBACK_CAP;
+    if (T <= pts[0].T) return pts[0].Q;
+    if (T >= pts[pts.length - 1].T) return pts[pts.length - 1].Q;
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (T >= pts[i].T && T <= pts[i + 1].T) {
+        const w = (T - pts[i].T) / (pts[i + 1].T - pts[i].T);
+        return pts[i].Q * (1 - w) + pts[i + 1].Q * w;
+      }
+    }
+    return pts[0].Q;
+  }
+
+  function ocvAt(soc, T) {
+    const o = state.assets.ocv;
+    if (!o) return interp1(clamp(soc, 0, 1), FALLBACK_OCV.map(p => p[0]), FALLBACK_OCV.map(p => p[1]));
+    const s = clamp(soc, 0, 1);
+    const { socGrid, temps, curves } = o;
+    const vT = (Ti) => interp1(s, socGrid, curves[Ti]);
+    if (T <= temps[0]) return vT(temps[0]);
+    if (T >= temps[temps.length - 1]) return vT(temps[temps.length - 1]);
+    for (let i = 0; i < temps.length - 1; i++) {
+      if (T >= temps[i] && T <= temps[i + 1]) {
+        const w = (T - temps[i]) / (temps[i + 1] - temps[i]);
+        return vT(temps[i]) * (1 - w) + vT(temps[i + 1]) * w;
+      }
+    }
+    return vT(temps[0]);
+  }
+
+  function r0At(T) {
+    if (T <= R0_TABLE[0][0]) return R0_TABLE[0][1];
+    if (T >= R0_TABLE[R0_TABLE.length - 1][0]) return R0_TABLE[R0_TABLE.length - 1][1];
+    for (let i = 0; i < R0_TABLE.length - 1; i++) {
+      if (T >= R0_TABLE[i][0] && T <= R0_TABLE[i + 1][0]) {
+        const w = (T - R0_TABLE[i][0]) / (R0_TABLE[i + 1][0] - R0_TABLE[i][0]);
+        return R0_TABLE[i][1] * (1 - w) + R0_TABLE[i + 1][1] * w;
+      }
+    }
+    return R0_TABLE[0][1];
+  }
+
+  // ============================================================
+  //  Profile generation (demo) — browser-side pack estimate
+  // ============================================================
+  function computeProfile(def, opts) {
+    const { T, soc0, load } = opts;
+    const Qpack = capacityAt(T) * PACK.Np;
+    const R0 = r0At(T);
+    const t = [], phase = [], P = [], alt = [], v = [];
+    let ti = 0;
+    for (const ph of def.phases) {
+      for (let j = 0; j < ph.dur; j++) {
+        const tt = ph.dur > 1 ? j / (ph.dur - 1) : 0;
+        t.push(ti); phase.push(ph.name);
+        P.push(ph.P * load);
+        alt.push(lerp(ph.alt0, ph.alt1, tt));
+        v.push(lerp(ph.v0, ph.v1, tt));
+        ti++;
+      }
+    }
+    const last = def.phases[def.phases.length - 1];
+    t.push(ti); phase.push(last.name); P.push(last.P * load); alt.push(last.alt1); v.push(last.v1);
+    const n = t.length, tEnd = ti;
+
+    const I = new Array(n), V = new Array(n), soc = new Array(n), E = new Array(n),
+          C = new Array(n), Erem = new Array(n), range = new Array(n);
+    let s = clamp(soc0, 0, 1);
+    for (let i = 0; i < n; i++) {
+      const Ip = P[i] * 1000 / PACK.Vconv;          // pack current [A] (discharge positive)
+      I[i] = Ip;
+      s = Math.max(0, s - Ip / 3600 / Qpack);
+      soc[i] = s;
+      const ocv = ocvAt(s, T);
+      const vcell = ocv - R0 * (Ip / PACK.Np);
+      V[i] = vcell * PACK.Ns;
+      C[i] = Ip / Qpack;
+    }
+    E[0] = 0; range[0] = 0;
+    for (let i = 1; i < n; i++) {
+      E[i] = E[i - 1] + (P[i] + P[i - 1]) / 2 / 3600;          // kWh delivered
+      range[i] = range[i - 1] + (v[i] + v[i - 1]) / 2 / 1000;  // km
+    }
+    for (let i = 0; i < n; i++) Erem[i] = soc[i] * Qpack * PACK.packVnom / 1000;
+
+    return { key: def.key, def, T, soc0, load, Qpack, R0, t, tEnd, phase, P, I, V, soc, E, C, Erem, alt, v, range, source: 'demo' };
+  }
+
+  // ============================================================
+  //  Optional MATLAB-exported CSV profile (results/mission_<key>.csv)
+  // ============================================================
+  async function tryLoadCsvProfile(key) {
+    let text;
+    try { text = await fetchText(`../results/mission_${key}.csv`); }
+    catch (e) { return null; }
+    try {
+      const { rows } = parseCSV(text);
+      if (!rows.length) return null;
+      const h = Object.keys(rows[0]);
+      const col = (name) => h.find(x => x.trim().toLowerCase() === name.toLowerCase());
+      const req = ['t_s', 'phase', 'P_demand_kW', 'V_pack', 'I_pack', 'SOC_pct', 'E_consumed_kWh', 'alt_m', 'range_km', 'v_mps', 'C_rate', 'E_remaining_kWh'];
+      for (const c of req) if (!col(c)) return null;
+      const num = (c) => rows.map(r => Number(r[col(c)]));
+      const t = num('t_s'), P = num('P_demand_kW'), V = num('V_pack'),
+            socPct = num('SOC_pct'), E = num('E_consumed_kWh'),
+            alt = num('alt_m'), range = num('range_km'), v = num('v_mps'),
+            C = num('C_rate'), Erem = num('E_remaining_kWh'),
+            phase = rows.map(r => String(r[col('phase')]).trim());
+      if (t.length < 10 || t.some(x => !Number.isFinite(x)) || P.some(x => !Number.isFinite(x))) return null;
+      for (let i = 1; i < t.length; i++) if (t[i] < t[i - 1]) return null;
+      const I = num('I_pack').map(x => Math.abs(x));          // display discharge-positive
+      const soc = socPct.map(x => clamp(x / 100, 0, 1));
+      return {
+        key, def: MISSION_DEFS[key],
+        T: null, soc0: soc[0], load: 1, Qpack: null, R0: null,
+        t, tEnd: t[t.length - 1], phase, P, I, V, soc, E, C, Erem, alt, v, range,
+        source: 'csv'
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ============================================================
+  //  Phase statistics (generic over demo and CSV profiles)
+  // ============================================================
+  function computePhaseStats(p) {
+    const def = p.def, palette = CSV_PALETTE;
+    const colorFor = (nm, idx) => {
+      if (def && def.phases) {
+        const f = def.phases.find(ph => ph.name === nm);
+        if (f) return f.color;
+      }
+      return palette[idx % palette.length];
+    };
+    const noteFor = (nm) => {
+      if (def && def.phases) {
+        const f = def.phases.find(ph => ph.name === nm);
+        if (f) return f.note;
+      }
+      return p.source === 'csv' ? 'from MATLAB export' : '';
+    };
+    const stats = [];
+    let cur = null;
+    const close = () => {
+      cur.Pmean = cur.Psum / cur.count;
+      stats.push(cur);
+      cur = null;
+    };
+    for (let i = 0; i < p.t.length; i++) {
+      const nm = p.phase[i];
+      if (!cur || cur.name !== nm) {
+        if (cur) close();
+        cur = {
+          name: nm,
+          start: p.t[i], end: p.t[i], dur: 0,
+          Psum: 0, Pmax: -Infinity, count: 0,
+          alt0: p.alt[i], altEnd: p.alt[i],
+          range0: p.range[i], rangeEnd: p.range[i],
+          E0: p.E[i], EEnd: p.E[i],
+          color: colorFor(nm, stats.length),
+          note: noteFor(nm)
+        };
+      }
+      cur.end = p.t[i]; cur.dur = cur.end - cur.start;
+      cur.Psum += p.P[i]; cur.Pmax = Math.max(cur.Pmax, p.P[i]); cur.count++;
+      cur.altEnd = p.alt[i]; cur.rangeEnd = p.range[i]; cur.EEnd = p.E[i];
+    }
+    if (cur) close();
+    for (const st of stats) {
+      st.Pmean = st.Psum / st.count;
+      st.range = Math.max(0, st.rangeEnd - st.range0);
+      st.energy = Math.max(0, st.EEnd - st.E0);
+      st.altChange = st.altEnd - st.alt0;
+    }
+    return stats;
+  }
+
+  // ============================================================
+  //  Sampling helpers
+  // ============================================================
+  function sampleAt(p, key, t) {
+    const arr = p[key], ts = p.t, n = ts.length;
+    if (n === 0) return NaN;
+    if (t <= ts[0]) return arr[0];
+    if (t >= ts[n - 1]) return arr[n - 1];
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (ts[mid] <= t) lo = mid; else hi = mid; }
+    const w = (t - ts[lo]) / (ts[hi] - ts[lo] || 1);
+    return arr[lo] * (1 - w) + arr[hi] * w;
+  }
+  function phaseAt(p, t) {
+    const ts = p.t, n = ts.length;
+    if (t <= ts[0]) return p.phase[0];
+    if (t >= ts[n - 1]) return p.phase[n - 1];
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (ts[mid] <= t) lo = mid; else hi = mid; }
+    return (t - ts[lo]) < (ts[hi] - t) ? p.phase[lo] : p.phase[hi];
+  }
+
+  // ============================================================
+  //  Plotly helpers
+  // ============================================================
+  function plotlyLayout(title, yTitle, xTitle = 'Time [h]') {
+    return {
+      title: { text: title, font: { color: '#e5eefb', size: 12.5 } },
+      margin: { l: 58, r: 26, t: 34, b: 46 },
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(2,6,23,.35)',
+      font: { color: '#cbd5e1' },
+      xaxis: { title: xTitle, gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
+      yaxis: { title: yTitle, gridcolor: 'rgba(148,163,184,.16)', zerolinecolor: 'rgba(148,163,184,.2)' },
+      legend: { orientation: 'h', y: 1.12, x: 0 },
+      hovermode: 'x unified',
+      shapes: []
+    };
+  }
+  const xOf = (p, t, unit) => t / (unit === 'min' ? 60 : 3600);
+  function cursorShape(p, t, unit) {
+    const x = xOf(p, t, unit);
+    return { type: 'line', xref: 'x', yref: 'paper', x0: x, x1: x, y0: 0, y1: 1, line: { color: '#fbbf24', width: 1.6, dash: 'dot' } };
+  }
+  function bandShapes(stats, unit) {
+    return stats.map(s => ({
+      type: 'rect', xref: 'x', yref: 'paper', layer: 'below',
+      x0: s.start / (unit === 'min' ? 60 : 3600), x1: s.end / (unit === 'min' ? 60 : 3600),
+      y0: 0, y1: 1, fillcolor: s.color, opacity: 0.08, line: { width: 0 }
+    }));
+  }
+  const PLOT_CFG = { responsive: true, displaylogo: false };
+
+  function renderPlots(p) {
+    if (!window.Plotly) { showError('Plotly CDN did not load. Check internet access or vendor Plotly locally.'); return; }
+    const th = p.t.map(x => x / 3600);
+    const tm = p.t.map(x => x / 60);
+    const stats = state.stats;
+    const unit = (id) => TIME_UNIT[id] || 'h';
+
+    const trace = (x, y, color, name, dash) => ({
+      x, y, type: 'scatter', mode: 'lines', name,
+      line: { color, width: 1.6, ...(dash ? { dash } : {}) }
+    });
+
+    const plots = [
+      { id: 'plotV', x: th, data: [trace(th, p.V, '#38bdf8', 'Pack voltage (estimate)')], lay: plotlyLayout('', 'Pack voltage [V]') },
+      { id: 'plotI', x: th, data: [trace(th, p.I, '#f59e0b', 'Pack current (discharge)')], lay: plotlyLayout('', 'Pack current [A]') },
+      { id: 'plotP', x: th, data: [trace(th, p.P, '#fb7185', 'Power demand')], lay: plotlyLayout('', 'Pack power [kW]') },
+      {
+        id: 'plotSOC', x: th,
+        data: [
+          trace(th, p.soc.map(s => s * 100), '#a3e635', 'SOC'),
+          trace(th, th.map(() => reserveFloorPct()), '#f43f5e', 'Reserve floor', 'dot')
+        ],
+        lay: plotlyLayout('', 'SOC [%]')
+      },
+      {
+        id: 'plotAlt', x: th,
+        data: [
+          trace(th, p.alt, '#22d3ee', 'Altitude [m]'),
+          trace(th, p.alt.map(a => a * 3.28084), 'rgba(22,211,238,.25)', 'Altitude [ft]', 'dot')
+        ],
+        lay: {
+          ...plotlyLayout('', 'Altitude [m]'),
+          yaxis2: { title: 'Altitude [ft]', overlaying: 'y', side: 'right', gridcolor: 'rgba(0,0,0,0)', color: '#67e8f9' }
+        }
+      },
+      { id: 'plotRange', x: th, data: [trace(th, p.range, '#7dd3fc', 'Range')], lay: plotlyLayout('', 'Range [km]') },
+      { id: 'plotC', x: th, data: [trace(th, p.C, '#c084fc', 'C-rate')], lay: plotlyLayout('', 'C-rate [C]') },
+      {
+        id: 'plotE', x: th,
+        data: [
+          trace(th, p.E, '#fbbf24', 'Energy consumed'),
+          trace(th, p.Erem, '#4ade80', 'Energy remaining', 'dash')
+        ],
+        lay: plotlyLayout('', 'Energy [kWh]')
+      },
+      { id: 'plotVelo', x: th, data: [trace(th, p.v, '#93c5fd', 'Ground speed')], lay: plotlyLayout('', 'Speed [m/s]') },
+      {
+        id: 'plotPhase', x: tm,
+        data: stats.map(s => ({
+          type: 'bar', orientation: 'h', x: [Math.max(s.dur, 1e-3) / 60], y: ['Mission'],
+          name: s.name, marker: { color: s.color }, width: 0.6,
+          hovertemplate: `${s.name}<br>${fmtHMS(s.start)} → ${fmtHMS(s.end)} (${fmt(s.dur, 0)} s)<extra></extra>`
+        })),
+        lay: {
+          ...plotlyLayout('', '', 'Time [min]'),
+          barmode: 'stack', bargap: 0.35,
+          yaxis: { title: '', showticklabels: false, gridcolor: 'rgba(0,0,0,0)' },
+          showlegend: false, margin: { l: 30, r: 18, t: 20, b: 40 },
+          hovermode: 'closest'
+        }
+      }
+    ];
+
+    for (const pl of plots) {
+      const id = pl.id, u = unit(id);
+      const base = (BANDED_PLOTS[id] ? bandShapes(stats, u) : []);
+      state.plotShapes[id] = base;
+      const layout = { ...pl.lay, shapes: base.slice() };
+      Plotly.react(id, pl.data, layout, PLOT_CFG);
+    }
+  }
+
+  function moveCursor(t) {
+    const p = state.profile;
+    if (!p || !window.Plotly) return;
+    for (const id of PLOT_IDS) {
+      const u = TIME_UNIT[id] || 'h';
+      const base = state.plotShapes[id] || [];
+      Plotly.relayout(id, { shapes: base.concat([cursorShape(p, t, u)]) });
+    }
+  }
+
+  // ============================================================
+  //  HTML rendering (KPIs, telemetry, phase table, visuals)
+  // ============================================================
+  function reserveFloorPct() { return clamp(Number($('reserveSoc').value) || 0, 0, 50); }
+
+  function renderKPIs(p, stats) {
+    const reserveFloor = reserveFloorPct() / 100;
+    let reserveKWh;
+    if (p.source === 'csv') {
+      const sEnd = p.soc[p.soc.length - 1];
+      reserveKWh = sEnd > 0 ? p.Erem[p.Erem.length - 1] * Math.max(0, sEnd - reserveFloor) / sEnd : 0;
+    } else {
+      reserveKWh = Math.max(0, p.soc[p.soc.length - 1] - reserveFloor) * p.Qpack * PACK.packVnom / 1000;
+    }
+    const pkI = Math.max(...p.I), pkP = Math.max(...p.P), mnV = Math.min(...p.V);
+    const kpis = [
+      ['Mission duration', fmtHMS(p.tEnd), `${(p.tEnd / 60).toFixed(1)} min`],
+      ['Range', `${fmt(p.range[p.range.length - 1])} km`, `${(p.range[p.range.length - 1] * 0.539957).toFixed(1)} nmi`],
+      ['Start SOC', `${(p.soc[0] * 100).toFixed(1)} %`, `initial`],
+      ['Final SOC', `${(p.soc[p.soc.length - 1] * 100).toFixed(1)} %`, `${(p.soc[0] * 100 - p.soc[p.soc.length - 1] * 100).toFixed(1)} pt used`],
+      ['Energy consumed', `${fmt(p.E[p.E.length - 1], 1)} kWh`, `delivered to load`],
+      ['Peak power', `${fmt(pkP, 1)} kW`, `${fmt(pkI / (p.Qpack || PACK.packAhNom), 2)} C peak`],
+      ['Peak current', `${fmt(pkI, 0)} A`, `2C limit ≈ ${fmt(PACK.cRateLimit * (p.Qpack || PACK.packAhNom), 0)} A`],
+      ['Min pack voltage', `${fmt(mnV, 1)} V`, `R0 estimate`],
+      ['Reserve energy', `${fmt(reserveKWh, 1)} kWh`, `SOC floor ${reserveFloorPct()} %`]
+    ];
+    $('kpis').innerHTML = kpis.map(([l, v, s]) =>
+      `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+  }
+
+  function renderTelemetryGrid() {
+    const p = state.profile;
+    if (!p) return;
+    const cards = [
+      ['Time', 'time'], ['Phase', 'phase', 'phase'], ['Altitude', 'alt'], ['Range', 'range'],
+      ['Pack voltage', 'V', 'hot'], ['Pack current', 'I'], ['Pack power', 'P', 'hot'],
+      ['SOC', 'soc', 'soc'], ['Energy consumed', 'E'], ['C-rate', 'C'],
+      ['Energy remaining', 'Erem'], ['Pack T (assumed)', 'T']
+    ];
+    $('teleGrid').innerHTML = cards.map(([label, key, cls]) =>
+      `<div class="tele-card ${cls || ''}"><div class="label">${label}</div><div class="value" id="tel_${key}">—</div></div>`).join('');
+  }
+
+  function updateTelemetry(t) {
+    const p = state.profile;
+    if (!p) return;
+    const v = (k) => sampleAt(p, k, t);
+    const V = v('V'), I = v('I'), P = v('P'), soc = v('soc'), E = v('E'),
+          alt = v('alt'), range = v('range'), C = v('C'), Erem = v('Erem'), vsp = v('v');
+    setTel('time', fmtHMS(t), '');
+    setTel('phase', phaseAt(p, t), '');
+    setTel('alt', `${fmt(alt, 0)} m`, `${fmt(alt * 3.28084, 0)} ft`);
+    setTel('range', `${fmt(range, 1)} km`, `${fmt(range * 0.539957, 1)} nmi`);
+    setTel('V', `${fmt(V, 1)} V`, `${fmt(V / PACK.Ns, 3)} V/cell`);
+    setTel('I', `${fmt(I, 0)} A`, `${fmt(I / PACK.Np, 1)} A/cell · ${fmt(I / (p.Qpack || PACK.packAhNom), 2)} C`);
+    setTel('P', `${fmt(P, 1)} kW`, `${fmt(P * 1.34102, 1)} hp`);
+    setTel('soc', `${(soc * 100).toFixed(1)} %`, `${fmt(Erem, 1)} kWh left`);
+    setTel('E', `${fmt(E, 1)} kWh`, `${(E / (p.E[p.E.length - 1] || 1) * 100).toFixed(1)} % of mission`);
+    setTel('C', `${fmt(C, 2)} C`, '');
+    setTel('Erem', `${fmt(Erem, 1)} kWh`, `${(soc * 100).toFixed(1)} % of nominal`);
+    setTel('T', p.source === 'csv' ? '—' : `${fmt(p.T ?? 25, 1)} °C`, p.source === 'csv' ? 'not in export' : 'assumed constant');
+    $('phaseStateChip').textContent = `Phase: ${phaseAt(p, t)} · ${fmtHMS(t)} / ${fmtHMS(p.tEnd)}`;
+  }
+  function setTel(key, main, sub) {
+    const el = $('tel_' + key);
+    if (!el) return;
+    el.innerHTML = `${main}${sub ? ` <span class="unit">· ${sub}</span>` : ''}`;
+  }
+
+  function renderPhaseTable(stats) {
+    $('phaseTbody').innerHTML = stats.map((s, i) => `
+      <tr id="phRow_${i}">
+        <td class="phase-name"><span class="phase-dot" style="background:${s.color}"></span>${s.name}</td>
+        <td>${fmtHMS(s.start)}</td>
+        <td>${fmtHMS(s.end)}</td>
+        <td>${fmt(s.dur, 0)} s</td>
+        <td>${fmt(s.Pmean, 1)}</td>
+        <td>${fmt(s.Pmax, 1)}</td>
+        <td>${s.altChange >= 0 ? '+' : ''}${fmt(s.altChange, 0)}</td>
+        <td>${fmt(s.range, 1)}</td>
+        <td>${fmt(s.energy, 1)}</td>
+        <td style="text-align:left; color:var(--muted); font-size:12px;">${s.note || ''}</td>
+      </tr>`).join('');
+  }
+
+  function renderProgress(p, stats) {
+    // phase bar + chips
+    const bar = $('phaseBar');
+    bar.innerHTML = stats.map(s => `<div class="seg" style="width:${(s.dur / p.tEnd * 100).toFixed(3)}%; background:${s.color};" title="${s.name}: ${fmtHMS(s.start)} → ${fmtHMS(s.end)}"><span style="color:rgba(4,17,31,.9)">${s.name}</span></div>`).join('');
+    $('phaseChips').innerHTML = stats.map((s, i) => `<span class="phase-chip" id="phChip_${i}" style="${i === 0 ? 'border-color:' + s.color : ''}">${s.name} <span class="dur">· ${fmt(s.dur / 60, 1)} min</span></span>`).join('');
+    // altitude SVG
+    const W = 600, H = 110, pad = 6;
+    const maxAlt = Math.max(...p.alt, 1);
+    const pt = (i) => [
+      pad + (p.t[i] / p.tEnd) * (W - 2 * pad),
+      H - pad - (p.alt[i] / maxAlt) * (H - 2 * pad)
+    ];
+    $('altPath').setAttribute('d', 'M' + p.t.map((_, i) => pt(i).join(',')).join(' L'));
+    $('altDot').setAttribute('cx', pt(0)[0]); $('altDot').setAttribute('cy', pt(0)[1]);
+    $('altText').textContent = `0 m`;
+    $('routeLabel0').textContent = `0 km`;
+    $('routeLabel1').textContent = `${fmt(p.range[p.range.length - 1], 1)} km`;
+  }
+
+  function updateProgressVisuals(t) {
+    const p = state.profile;
+    if (!p) return;
+    // aircraft marker along route by range fraction
+    const frac = p.range[p.range.length - 1] > 0
+      ? clamp(sampleAt(p, 'range', t) / p.range[p.range.length - 1], 0, 1) : 0;
+    $('aircraftMarker').style.left = (frac * 100).toFixed(2) + '%';
+    $('routeLabel0').textContent = `${fmt(sampleAt(p, 'range', t), 1)} km`;
+    // altitude dot
+    const W = 600, H = 110, pad = 6;
+    const maxAlt = Math.max(...p.alt, 1);
+    const alt = sampleAt(p, 'alt', t);
+    const cx = pad + (t / p.tEnd) * (W - 2 * pad);
+    const cy = H - pad - (alt / maxAlt) * (H - 2 * pad);
+    $('altDot').setAttribute('cx', cx.toFixed(1));
+    $('altDot').setAttribute('cy', cy.toFixed(1));
+    $('altText').textContent = `${fmt(alt, 0)} m · ${fmt(alt * 3.28084, 0)} ft`;
+    // phase bar marker
+    $('phaseBarMarker').style.left = (t / p.tEnd * 100).toFixed(2) + '%';
+    // phase chips + table highlight
+    const ph = phaseAt(p, t);
+    const idx = state.stats.findIndex(s => s.name === ph);
+    document.querySelectorAll('.phase-chip').forEach((el, i) => {
+      el.classList.toggle('active', i === idx);
+      if (i === idx) el.style.background = state.stats[i].color;
+      else el.style.background = '';
+    });
+    document.querySelectorAll('#phaseTable tbody tr').forEach((el, i) => {
+      el.classList.toggle('current', i === idx);
+    });
+  }
+
+  // ============================================================
+  //  Mission load / rebuild
+  // ============================================================
+  function assumptionOpts() {
+    return {
+      T: clamp(Number($('ambientT').value) || 25, -20, 60),
+      soc0: clamp((Number($('initSoc').value) || 100) / 100, 0, 1),
+      reserve: clamp((Number($('reserveSoc').value) || 20) / 100, 0, 0.5),
+      load: clamp(Number($('loadFactor').value) || 1, 0.5, 1.3)
+    };
+  }
+
+  async function loadMission(key) {
+    clearError();
+    state.mission = key;
+    stopPlayback();
+
+    let profile = null;
+    let csvTried = false;
+    try {
+      profile = await tryLoadCsvProfile(key);
+      csvTried = true;
+    } catch (e) { profile = null; }
+
+    if (profile) {
+      // Exact MATLAB export: fixed profile, assumption controls do not apply.
+      setAssumptionsEnabled(false);
+    } else {
+      const o = assumptionOpts();
+      profile = computeProfile(MISSION_DEFS[key], o);
+      setAssumptionsEnabled(true);
+    }
+
+    state.profile = profile;
+    state.stats = computePhaseStats(profile);
+    state.t = 0;
+
+    // chips
+    const srcChip = $('sourceChip');
+    if (profile.source === 'csv') {
+      srcChip.textContent = 'MATLAB-exported profile (exact)';
+      srcChip.classList.remove('warn'); srcChip.classList.add('ok');
+      $('methodChip').textContent = 'Simscape-pack export replay';
+      $('methodNotice').innerHTML = 'This page is a <b>static browser dashboard</b> (GitHub Pages-compatible). The active profile was exported by <code>matlab/Aircraft_Mission.m</code> (<code>results/mission_' + key + '.csv</code>) and is replayed here as-is. Assumption controls are disabled for exported profiles; use the built-in demo profiles to vary temperature, initial SOC, reserve floor or load factor.';
+      $('statusLine').innerHTML = `<strong>Loaded MATLAB-exported mission profile</strong> (${profile.t.length.toLocaleString()} samples, ${fmtHMS(profile.tEnd)}). Assumption controls disabled — the exported profile is fixed.`;
+    } else {
+      srcChip.textContent = 'demo mission profile';
+      srcChip.classList.add('warn'); srcChip.classList.remove('ok');
+      $('methodChip').textContent = 'browser-side pack estimate';
+      $('methodNotice').innerHTML = 'This page is a <b>static browser dashboard</b> (GitHub Pages-compatible). Mission profiles are <b>demo mission profiles</b> and pack quantities are <b>browser-side pack estimates</b> — not high-fidelity Simscape simulation. For exact Simscape results, run <code>matlab/Aircraft_Mission.m</code> and drop the exported <code>results/mission_&lt;type&gt;.csv</code> files next to the other result artifacts.';
+      const o = assumptionOpts();
+      $('statusLine').innerHTML = `<strong>${profile.def.name} demo mission ready.</strong> ${profile.t.length.toLocaleString()} samples · ${fmtHMS(profile.tEnd)} · Q_pack ${fmt(profile.Qpack, 1)} Ah @ ${fmt(profile.T, 1)} °C · R0 ${fmt(profile.R0 * 1000, 2)} mΩ/cell.`;
+    }
+
+    // aircraft card selection
+    $('cardX57').classList.toggle('active', key === 'x57');
+    $('cardEvtol').classList.toggle('active', key === 'evtol');
+    $('cardX57').setAttribute('aria-pressed', key === 'x57');
+    $('cardEvtol').setAttribute('aria-pressed', key === 'evtol');
+    $('missionSelect').value = key;
+
+    // timeline
+    const slider = $('timeline');
+    slider.min = 0; slider.max = profile.tEnd; slider.value = 0;
+
+    // render everything
+    renderKPIs(profile, state.stats);
+    renderTelemetryGrid();
+    renderPhaseTable(state.stats);
+    renderProgress(profile, state.stats);
+    if (window.Plotly) renderPlots(profile);
+    updateTime(0, { force: true });
+    syncPlayUI();
+  }
+
+  function setAssumptionsEnabled(enabled) {
+    ['ambientT', 'initSoc', 'reserveSoc', 'loadFactor'].forEach(id => {
+      $(id).disabled = !enabled;
+      $(id).style.opacity = enabled ? 1 : 0.45;
+    });
+  }
+
+  // ============================================================
+  //  Playback (requestAnimationFrame)
+  // ============================================================
+  function startPlayback() {
+    const p = state.profile;
+    if (!p) return;
+    if (state.t >= p.tEnd) state.t = 0;
+    state.playing = true;
+    state.lastTs = performance.now();
+    syncPlayUI();
+    state.raf = requestAnimationFrame(playFrame);
+  }
+  function stopPlayback() {
+    state.playing = false;
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.raf = null;
+    syncPlayUI();
+  }
+  function playFrame(ts) {
+    if (!state.playing) return;
+    const dt = Math.min(Math.max((ts - state.lastTs) / 1000, 0), 0.5);   // clamp long gaps
+    state.lastTs = ts;
+    const p = state.profile;
+    let t = state.t + dt * state.speed;
+    if (t >= p.tEnd) {
+      t = p.tEnd;
+      updateTime(t, { force: true });
+      stopPlayback();                       // stop automatically at mission end
+      $('phaseStateChip').textContent = `Mission complete · ${fmtHMS(t)} / ${fmtHMS(p.tEnd)}`;
+      return;
+    }
+    state.t = t;
+    updateTime(t, {});
+    if (state.playing) state.raf = requestAnimationFrame(playFrame);
+  }
+  function syncPlayUI() {
+    const playing = state.playing;
+    $('playBtn').innerHTML = playing ? '⏸ Pause' : '▶ Play';
+    $('heroPlayBtn').innerHTML = playing ? '⏸ Pause mission' : '▶ Play mission';
+    $('playBtn').classList.toggle('secondary', playing);
+    $('heroPlayBtn').classList.toggle('secondary', playing);
+  }
+
+  // ============================================================
+  //  Time update (slider, readouts, visuals, throttled cursors)
+  // ============================================================
+  function updateTime(t, opts = {}) {
+    const p = state.profile;
+    if (!p) return;
+    t = clamp(t, 0, p.tEnd);
+    state.t = t;
+    const slider = $('timeline');
+    slider.value = t;
+    $('timeReadout').textContent = `${fmtHMS(t)} / ${fmtHMS(p.tEnd)}`;
+    updateTelemetry(t);
+    updateProgressVisuals(t);
+    const now = performance.now();
+    if (opts.force || now - state.lastCursor > 80) {
+      state.lastCursor = now;
+      moveCursor(t);
+    }
+  }
+
+  // ============================================================
+  //  Event wiring
+  // ============================================================
+  $('playBtn').addEventListener('click', () => state.playing ? stopPlayback() : startPlayback());
+  $('heroPlayBtn').addEventListener('click', () => state.playing ? stopPlayback() : startPlayback());
+  $('resetBtn').addEventListener('click', () => { stopPlayback(); updateTime(0, { force: true }); });
+  $('heroResetBtn').addEventListener('click', () => { stopPlayback(); updateTime(0, { force: true }); });
+
+  $('timeline').addEventListener('input', (ev) => {
+    updateTime(Number(ev.target.value), { force: true });
+  });
+
+  $('speedSelect').addEventListener('change', (ev) => {
+    state.speed = Number(ev.target.value) || 1;
+  });
+
+  $('missionSelect').addEventListener('change', (ev) => {
+    loadMission(ev.target.value);
+  });
+
+  ['cardX57', 'cardEvtol'].forEach((id, i) => {
+    const key = ['x57', 'evtol'][i];
+    $(id).addEventListener('click', () => loadMission(key));
+    $(id).addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); loadMission(key); }
+    });
+  });
+
+  ['ambientT', 'initSoc', 'reserveSoc', 'loadFactor'].forEach(id => {
+    $(id).addEventListener('change', () => {
+      if (state.profile && state.profile.source === 'demo') loadMission(state.mission);
+    });
+  });
+
+  // ============================================================
+  //  Boot: load model assets then the initial mission
+  // ============================================================
+  async function loadAssets() {
+    try {
+      const [cap, ocv] = await Promise.all([
+        fetchText('../results/Capacity_vs_T.csv'),
+        fetchText('../results/OCV_2D_SOCxT.csv')
+      ]);
+      state.assets.capacity = parseCapacity(cap);
+      state.assets.ocv = parseOcv(ocv);
+    } catch (err) {
+      // Robust fallbacks are embedded; proceed with demo profile.
+      console.warn('Asset load failed, using built-in fallbacks:', err.message || err);
+    }
+  }
+
+  (async function boot() {
+    if (!window.Plotly) {
+      showError('Plotly CDN did not load. Check internet access or vendor Plotly locally.');
+    }
+    await loadAssets();
+    await loadMission('x57');
+  })();
+})();
+</script>
+</body>
+</html>
