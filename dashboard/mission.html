@@ -472,10 +472,29 @@
               <span class="route-label r0" id="routeLabel0">0 km</span>
               <span class="route-label r1" id="routeLabel1">—</span>
               <span class="aircraft-marker" id="aircraftMarker">
-                <svg viewBox="0 0 48 48" aria-hidden="true">
-                  <g transform="rotate(45 24 24)">
-                    <path d="M24 4 L29 20 L45 24 L29 28 L24 44 L19 28 L3 24 L19 20 Z" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.2"/>
-                  </g>
+                <svg id="markerX57" viewBox="0 0 48 48" aria-hidden="true">
+                  <!-- X-57 style high-wing prop plane (side view, nose right) -->
+                  <path d="M9.5 24 L5 13 L14.5 21.8 Z" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.1" stroke-linejoin="round"/>
+                  <rect x="14" y="21" width="22" height="3.2" rx="1.6" fill="rgba(125,211,252,.9)" stroke="#e0f2fe" stroke-width="1"/>
+                  <circle cx="17.5" cy="19" r="1.7" fill="#e0f2fe"/>
+                  <circle cx="23" cy="19" r="1.7" fill="#e0f2fe"/>
+                  <circle cx="28.5" cy="19" r="1.7" fill="#e0f2fe"/>
+                  <circle cx="34" cy="19" r="1.7" fill="#e0f2fe"/>
+                  <path d="M4 27 C8 24.8, 15 24.2, 24 24.2 L36 24.2 C41 24.2, 44.6 25.8, 45.6 27 C44.6 28.2, 41 29.8, 36 29.8 L24 29.8 C15 29.8, 8 29.2, 4 27 Z" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.1" stroke-linejoin="round"/>
+                  <circle cx="40.5" cy="26.4" r="1.2" fill="#04111f"/>
+                </svg>
+                <svg id="markerEvtol" viewBox="0 0 48 48" aria-hidden="true" style="display:none">
+                  <!-- eVTOL multirotor (side view: rotor boom + cabin + skids) -->
+                  <line x1="9.5" y1="25.5" x2="9.5" y2="21.5" stroke="#e0f2fe" stroke-width="1.4" stroke-linecap="round"/>
+                  <line x1="38.5" y1="25.5" x2="38.5" y2="21.5" stroke="#e0f2fe" stroke-width="1.4" stroke-linecap="round"/>
+                  <ellipse cx="9.5" cy="20.8" rx="7" ry="1.9" fill="rgba(224,242,254,.9)" stroke="#7dd3fc" stroke-width="1"/>
+                  <ellipse cx="38.5" cy="20.8" rx="7" ry="1.9" fill="rgba(224,242,254,.9)" stroke="#7dd3fc" stroke-width="1"/>
+                  <rect x="7" y="25.2" width="34" height="2.2" rx="1.1" fill="rgba(125,211,252,.9)" stroke="#e0f2fe" stroke-width="1"/>
+                  <rect x="17" y="26.5" width="14" height="9" rx="4.5" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.1"/>
+                  <circle cx="27.8" cy="30.4" r="1.6" fill="#04111f"/>
+                  <line x1="19.5" y1="35.5" x2="18" y2="38.5" stroke="#e0f2fe" stroke-width="1.4" stroke-linecap="round"/>
+                  <line x1="28.5" y1="35.5" x2="30" y2="38.5" stroke="#e0f2fe" stroke-width="1.4" stroke-linecap="round"/>
+                  <line x1="14.5" y1="39" x2="33.5" y2="39" stroke="#e0f2fe" stroke-width="1.6" stroke-linecap="round"/>
                 </svg>
               </span>
             </div>
@@ -1180,6 +1199,10 @@
     $('cardX57').setAttribute('aria-pressed', key === 'x57');
     $('cardEvtol').setAttribute('aria-pressed', key === 'evtol');
     $('missionSelect').value = key;
+
+    // route marker silhouette follows the selected aircraft
+    $('markerX57').style.display = key === 'x57' ? '' : 'none';
+    $('markerEvtol').style.display = key === 'evtol' ? '' : 'none';
 
     if (!state.cache[key]) state.cache[key] = await loadCsvProfile(key);
     const res = state.cache[key];
