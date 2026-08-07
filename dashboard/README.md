@@ -129,6 +129,9 @@ never synthesizes mission data in the browser.
   change, range, energy, notes) with the active phase highlighted
 - progress visuals: aircraft marker moving along the route, altitude mini-profile
   with position dot, phase bar and phase chips
+- collapsible **"Assumptions & method"** panel (dropdown arrow — click the header
+  to expand/collapse) documenting data source, mission profiles, pack scaling,
+  the trajectory caveat, and playback behavior
 
 ## GitHub Pages
 
