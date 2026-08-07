@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Aircraft mission dashboard for the 192S4P battery pack: X-57 and eVTOL demo mission profiles with dynamic time playback." />
+  <meta name="description" content="Aircraft mission dashboard for the 192S4P battery pack: replays the Simscape X-57 and eVTOL mission exports with dynamic time playback." />
   <title>Aircraft Mission Dashboard · 192S4P Pack</title>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <style>
@@ -35,6 +35,7 @@
         linear-gradient(135deg, #07111f 0%, #081526 48%, #06111d 100%);
     }
     a { color: #7dd3fc; }
+    code { color: #7dd3fc; }
     .wrap { max-width: 1480px; margin: 0 auto; padding: 26px; }
     .panel {
       background: var(--panel);
@@ -115,9 +116,8 @@
 
     /* ---------- controls ---------- */
     .controls { padding: 18px; margin-bottom: 20px; }
-    .controls-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 14px; align-items: end; }
     .control label { display: block; color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 7px; }
-    select, input[type="number"], input[type="range"] {
+    select, input[type="range"] {
       width: 100%; border-radius: 12px; border: 1px solid var(--border); background: rgba(2, 6, 23, .65);
       color: var(--text); padding: 11px 12px; outline: none; font-size: 14px;
     }
@@ -142,6 +142,23 @@
     .status-line { margin-top: 12px; color: #cbd5e1; font-size: 13px; }
     .status-line strong { color: #86efac; }
     .error { color: #fecdd3; background: rgba(244,63,94,.12); border: 1px solid rgba(244,63,94,.32); border-radius: 12px; padding: 10px; display: none; margin-top: 12px; }
+
+    /* ---------- empty state (missing Simscape export) ---------- */
+    .empty-state { padding: 26px; margin-bottom: 20px; border: 1px solid rgba(245,158,11,.42); }
+    .empty-head { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
+    .empty-head svg { width: 46px; height: 46px; flex: 0 0 auto; }
+    .empty-head h2 { margin: 0 0 6px; font-size: 21px; }
+    .empty-msg { margin: 0; color: #cbd5e1; font-size: 14px; line-height: 1.65; }
+    .empty-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .empty-block { padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: rgba(2,6,23,.4); }
+    .empty-block h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: #86efac; }
+    .empty-block ol { margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 13px; line-height: 1.85; }
+    .empty-block pre {
+      margin: 0; padding: 12px; border-radius: 10px; background: rgba(2,6,23,.7);
+      border: 1px solid var(--border); color: #7dd3fc; font-size: 12px; line-height: 1.7;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+    }
+    .empty-block .note { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
 
     /* ---------- mission progress ---------- */
     .progress-panel { padding: 18px; margin-bottom: 20px; }
@@ -232,19 +249,17 @@
     .assump-block .note { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 8px; }
     .notice {
       margin-top: 14px; padding: 12px 14px; border-radius: 14px; font-size: 13px; line-height: 1.55;
-      background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3); color: #fde68a;
+      background: rgba(34,197,94,.07); border: 1px solid rgba(34,197,94,.28); color: #d1fae5;
     }
     .footer { color: var(--muted); padding: 20px 4px 6px; font-size: 12px; }
 
     @media (max-width: 1100px) {
-      .hero, .progress-grid, .assumptions-grid, .plots-grid { grid-template-columns: 1fr; }
-      .controls-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero, .progress-grid, .assumptions-grid, .plots-grid, .empty-grid { grid-template-columns: 1fr; }
       .aircraft-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 620px) {
       .wrap { padding: 14px; }
       .kpis, .spec-grid { grid-template-columns: 1fr 1fr; }
-      .controls-grid { grid-template-columns: 1fr; }
       .plot { height: 260px; }
       .aircraft-specs { grid-template-columns: 1fr; }
     }
@@ -267,8 +282,9 @@
         <div class="eyebrow">Aircraft mission · 192S4P pack load</div>
         <h1>Mission dashboard &amp; dynamic playback</h1>
         <p class="subtitle">
-          Fly the 192S4P pack through a NASA X-57 style cruise mission or a representative eVTOL stress mission,
-          replaying pack voltage, current, power, SOC, altitude and range along the profile with a time cursor.
+          Fly the 192S4P pack through the NASA X-57 cruise mission or the eVTOL stress mission.
+          The page replays the exact Simscape pack exports — voltage, current, power, SOC, altitude
+          and range — along each profile with a dynamic time cursor.
         </p>
         <div class="hero-actions">
           <button id="heroPlayBtn" class="blue">▶ Play mission</button>
@@ -276,9 +292,8 @@
         </div>
         <div class="chiprow" id="heroChips">
           <span class="chip ok">192S4P pack</span>
-          <span class="chip warn" id="sourceChip">demo mission profile</span>
-          <span class="chip" id="methodChip">browser-side pack estimate</span>
-          <span class="chip">static browser estimate</span>
+          <span class="chip ok" id="sourceChip">Simscape-pack export replay</span>
+          <span class="chip" id="methodChip">X-57 / eVTOL missions</span>
         </div>
       </div>
       <aside class="packpass panel">
@@ -322,7 +337,7 @@
           <circle cx="188" cy="73" r="7.5" fill="none" stroke="#fbbf24" stroke-width="1.8"/>
           <text x="120" y="103" text-anchor="middle" font-size="9" fill="#7dd3fc">14 electric motors · high-wing cruise aircraft</text>
         </svg>
-        <p class="aircraft-tagline">Cruise-flight mission — power demand from the NASA X-57 Maxwell profile (Battery_Evaluation_EATS Table 1), as scripted in <code>matlab/Aircraft_Mission.m</code>.</p>
+        <p class="aircraft-tagline">Cruise-flight mission — power demand from the NASA X-57 Maxwell profile (Chin et al. 2020, Table 1), as scripted in <code>matlab/Aircraft_Mission.m</code>.</p>
         <div class="aircraft-specs">
           <div class="aircraft-spec"><span>Peak demand</span><b>≈ 189 kW</b></div>
           <div class="aircraft-spec"><span>Cruise power</span><b>≈ 142 kW</b></div>
@@ -393,183 +408,223 @@
           <input id="timeline" type="range" min="0" max="0" value="0" step="1" />
         </div>
       </div>
-      <div class="controls-grid" id="assumptionGrid">
-        <div class="control">
-          <label for="ambientT">Ambient / pack temperature [°C]</label>
-          <input id="ambientT" type="number" min="-20" max="60" step="1" value="25" />
-        </div>
-        <div class="control">
-          <label for="initSoc">Initial SOC [%]</label>
-          <input id="initSoc" type="number" min="5" max="100" step="1" value="100" />
-        </div>
-        <div class="control">
-          <label for="reserveSoc">Reserve SOC floor [%]</label>
-          <input id="reserveSoc" type="number" min="0" max="50" step="1" value="20" />
-        </div>
-        <div class="control">
-          <label for="loadFactor">Load factor (× phase power)</label>
-          <input id="loadFactor" type="number" min="0.5" max="1.3" step="0.05" value="1" />
-        </div>
-      </div>
-      <div class="status-line" id="statusLine">Loading mission profiles…</div>
+      <div class="status-line" id="statusLine">Loading Simscape mission exports…</div>
       <div id="errorBox" class="error"></div>
     </section>
 
-    <section class="progress-panel panel">
-      <div class="progress-grid">
-        <div class="progress-block">
-          <h3>Route progress — distance travelled</h3>
-          <div class="route">
-            <div class="route-grid"></div>
-            <span class="route-label r0" id="routeLabel0">0 km</span>
-            <span class="route-label r1" id="routeLabel1">—</span>
-            <span class="aircraft-marker" id="aircraftMarker">
-              <svg viewBox="0 0 48 48" aria-hidden="true">
-                <g transform="rotate(45 24 24)">
-                  <path d="M24 4 L29 20 L45 24 L29 28 L24 44 L19 28 L3 24 L19 20 Z" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.2"/>
-                </g>
-              </svg>
-            </span>
+    <!-- empty state shown when results/mission_<key>.csv is missing or invalid -->
+    <section class="empty-state panel hidden" id="emptyState">
+      <div class="empty-head">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 5 L45 41 H3 Z" fill="rgba(245,158,11,.14)" stroke="#fbbf24" stroke-width="2.4" stroke-linejoin="round"/>
+          <line x1="24" y1="18" x2="24" y2="29" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="24" cy="35" r="1.9" fill="#fbbf24"/>
+        </svg>
+        <div>
+          <h2>Simscape mission export not found</h2>
+          <p class="empty-msg" id="emptyMsg"></p>
+        </div>
+      </div>
+      <div class="empty-grid">
+        <div class="empty-block">
+          <h3>How to generate it</h3>
+          <ol>
+            <li>Open MATLAB in the repository root (needs Simscape; the pack model is <code>matlab/step4_BatteryModel.slx</code> with <code>results/Simscape_BatteryPackParams.mat</code>).</li>
+            <li>In <code>matlab/Aircraft_Mission.m</code>, set <code>missionType = '<span id="emptyType">x57</span>';</code> at the top of the file.</li>
+            <li>Run <code>Aircraft_Mission</code> — it simulates the scripted 192S4P pack through the mission and writes <code id="emptyFile">results/mission_x57.csv</code>.</li>
+            <li>Reload this page (serve the repository root, e.g. <code>python3 -m http.server 8080 --bind 0.0.0.0</code>).</li>
+          </ol>
+        </div>
+        <div class="empty-block">
+          <h3>Required column contract</h3>
+          <pre>t_s, phase, P_demand_kW, V_pack, I_pack, SOC_pct, E_consumed_kWh, alt_m, range_km, v_mps, C_rate, E_remaining_kWh</pre>
+          <p class="note">
+            <code>I_pack</code> uses the MATLAB sign convention (negative = discharge); the dashboard plots
+            discharge-positive. The CSV is replayed exactly as exported — this page never substitutes
+            synthetic mission data.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div id="missionContent">
+      <section class="progress-panel panel">
+        <div class="progress-grid">
+          <div class="progress-block">
+            <h3>Route progress — distance travelled</h3>
+            <div class="route">
+              <div class="route-grid"></div>
+              <span class="route-label r0" id="routeLabel0">0 km</span>
+              <span class="route-label r1" id="routeLabel1">—</span>
+              <span class="aircraft-marker" id="aircraftMarker">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <g transform="rotate(45 24 24)">
+                    <path d="M24 4 L29 20 L45 24 L29 28 L24 44 L19 28 L3 24 L19 20 Z" fill="rgba(125,211,252,.85)" stroke="#e0f2fe" stroke-width="1.2"/>
+                  </g>
+                </svg>
+              </span>
+            </div>
+          </div>
+          <div class="progress-block">
+            <h3>Altitude profile — aircraft position</h3>
+            <svg class="altitude-svg" id="altSvg" viewBox="0 0 600 110" preserveAspectRatio="none">
+              <line x1="6" y1="104" x2="594" y2="104" stroke="rgba(148,163,184,.4)" stroke-width="1"/>
+              <path id="altPath" d="M6 104 L594 104" fill="none" stroke="#22d3ee" stroke-width="2"/>
+              <circle id="altDot" cx="6" cy="104" r="5" fill="#fbbf24" stroke="#04111f" stroke-width="1.5"/>
+              <text id="altText" x="10" y="16" fill="#cbd5e1" font-size="13" font-weight="700">0 m</text>
+            </svg>
           </div>
         </div>
-        <div class="progress-block">
-          <h3>Altitude profile — aircraft position</h3>
-          <svg class="altitude-svg" id="altSvg" viewBox="0 0 600 110" preserveAspectRatio="none">
-            <line x1="6" y1="104" x2="594" y2="104" stroke="rgba(148,163,184,.4)" stroke-width="1"/>
-            <path id="altPath" d="M6 104 L594 104" fill="none" stroke="#22d3ee" stroke-width="2"/>
-            <circle id="altDot" cx="6" cy="104" r="5" fill="#fbbf24" stroke="#04111f" stroke-width="1.5"/>
-            <text id="altText" x="10" y="16" fill="#cbd5e1" font-size="13" font-weight="700">0 m</text>
-          </svg>
+        <div class="phasebar-wrap">
+          <div class="phasebar" id="phaseBar"></div>
+          <div class="phasebar-marker" id="phaseBarMarker" style="left:0%"></div>
+          <div class="phase-chips" id="phaseChips"></div>
         </div>
-      </div>
-      <div class="phasebar-wrap">
-        <div class="phasebar" id="phaseBar"></div>
-        <div class="phasebar-marker" id="phaseBarMarker" style="left:0%"></div>
-        <div class="phase-chips" id="phaseChips"></div>
-      </div>
-    </section>
+      </section>
 
-    <section class="kpis" id="kpis"></section>
+      <section class="kpis" id="kpis"></section>
 
-    <section class="telemetry panel">
-      <div class="telemetry-head">
-        <h2>Live telemetry at current mission time</h2>
-        <span class="chip" id="phaseStateChip">—</span>
-      </div>
-      <div class="tele-grid" id="teleGrid"></div>
-    </section>
-
-    <section class="plots-grid">
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Pack voltage</h2><p class="chart-desc">Browser-side estimate: V = Ns × (OCV(SOC,T) − R0(T) × I/Np). No RC dynamics.</p></div><span class="chip" id="chipV">estimate</span></div>
-        <div id="plotV" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Pack current</h2><p class="chart-desc">Discharge shown positive; derived from demand power / V_conv (750 V, MATLAB convention).</p></div><span class="chip" id="chipI">A</span></div>
-        <div id="plotI" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Pack power demand</h2><p class="chart-desc">Phase-colored background. Nominal phase powers from <code>matlab/Aircraft_Mission.m</code>.</p></div><span class="chip" id="chipP">kW</span></div>
-        <div id="plotP" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>State of charge</h2><p class="chart-desc">Coulomb counting with per-temperature pack capacity (Capacity_vs_T.csv × Np).</p></div><span class="chip" id="chipSOC">%</span></div>
-        <div id="plotSOC" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Altitude</h2><p class="chart-desc">Demo profile (ft on right axis).</p></div><span class="chip" id="chipAlt">m / ft</span></div>
-        <div id="plotAlt" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Range / distance</h2><p class="chart-desc">Integrated demo ground speed.</p></div><span class="chip" id="chipRange">km</span></div>
-        <div id="plotRange" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>C-rate</h2><p class="chart-desc">|I| / pack capacity. 2C = ≈ 280 A limit.</p></div><span class="chip" id="chipC">C</span></div>
-        <div id="plotC" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Energy</h2><p class="chart-desc">Delivered energy vs energy remaining in the pack (at nominal voltage).</p></div><span class="chip" id="chipE">kWh</span></div>
-        <div id="plotE" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Aircraft speed</h2><p class="chart-desc">Demo ground-speed profile.</p></div><span class="chip" id="chipVelo">m/s</span></div>
-        <div id="plotVelo" class="plot"></div>
-      </div>
-      <div class="chart-panel panel">
-        <div class="chart-title"><div><h2>Mission phase timeline</h2><p class="chart-desc">Phase durations along the mission. Cursor follows playback.</p></div><span class="chip">phases</span></div>
-        <div id="plotPhase" class="plot"></div>
-      </div>
-    </section>
-
-    <section class="phase-table-panel panel">
-      <h2>Mission phases</h2>
-      <div style="overflow-x:auto;">
-        <table class="phase-table" id="phaseTable">
-          <thead>
-            <tr>
-              <th>Phase</th><th>Start</th><th>End</th><th>Duration</th>
-              <th>Nominal P [kW]</th><th>Peak P [kW]</th><th>Altitude change [m]</th>
-              <th>Range [km]</th><th>Energy [kWh]</th><th>Notes</th>
-            </tr>
-          </thead>
-          <tbody id="phaseTbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="assumptions panel">
-      <h2>Assumptions &amp; method</h2>
-      <div class="assumptions-grid">
-        <div class="assump-block">
-          <h3>Profile source</h3>
-          <ul id="assumpSourceList">
-            <li><b>Demo mission profile</b> — generated in the browser at 1 s resolution from the phase definitions in <code>matlab/Aircraft_Mission.m</code>.</li>
-            <li>X-57: phase powers <code>[34.0, 187.8, 189.3, 156.8, 141.6, 31.4] kW</code> with durations <code>[300, 30, 15, 446, 417, 293] s</code> (NASA X-57 Maxwell profile, Battery_Evaluation_EATS Table 1).</li>
-            <li>eVTOL: phase currents <code>[-14, -56, -280, -200, -112, -28, -14] A</code> × 750 V with durations <code>[300, 180, 60, 180, 720, 180, 180] s</code>.</li>
-            <li>Altitude, ground speed and range are <b>demo assumptions</b> (X-57: 8,000 ft cruise at ≈172 kt; eVTOL: ≈300 m cruise at ≈60 m/s).</li>
-            <li>If <code>results/mission_x57.csv</code> / <code>results/mission_evtol.csv</code> (exported by <code>Aircraft_Mission.m</code>) exist, the page uses that exact MATLAB export instead.</li>
-          </ul>
+      <section class="telemetry panel">
+        <div class="telemetry-head">
+          <h2>Live telemetry at current mission time</h2>
+          <span class="chip" id="phaseStateChip">—</span>
         </div>
-        <div class="assump-block">
-          <h3>Pack scaling (step5_BuildPackParams.m)</h3>
-          <ul>
-            <li>192 cells series × 4 strings parallel → <b>192S4P</b>.</li>
-            <li>Cell: ≈ 35 Ah, 3.65 V nominal, 2.75–4.20 V window.</li>
-            <li>Pack: ≈ 140 Ah, ≈ 700.8 V, ≈ 98.1 kWh.</li>
-            <li>Capacity per temperature from <code>results/Capacity_vs_T.csv</code> × Np (robust fallback: 34.94 Ah @ 25 °C).</li>
-            <li>2C current limit ≈ 2 × 140 A ≈ 280 A pack (as in Aircraft_Mission.m).</li>
-          </ul>
-        </div>
-        <div class="assump-block">
-          <h3>Browser-side pack estimate</h3>
-          <ul>
-            <li>Pack current from demand power: I = P × 1000 / V_conv, V_conv = 750 V (MATLAB conversion convention).</li>
-            <li>SOC by Coulomb counting: SOC(t) = SOC₀ − ∫I dt / Q_pack(T), floor at 0.</li>
-            <li>OCV(SOC, T) interpolated from <code>results/OCV_2D_SOCxT.csv</code> (robust fallback: built-in reference curve).</li>
-            <li>Cell resistance R0(T) ≈ representative LUT value (≈1.6–3.2 mΩ across SOC/T; 2.2 mΩ @ 25 °C).</li>
-            <li>Pack voltage = Ns × (OCV − R0 × I/Np). No RC dynamics, no thermal model, no Simscape — a <b>static browser estimate</b>.</li>
-          </ul>
-        </div>
-        <div class="assump-block">
-          <h3>Playback &amp; controls</h3>
-          <ul>
-            <li><code>requestAnimationFrame</code> playback loop; speed factor applies to dynamic playback only.</li>
-            <li>Timeline slider can be dragged at any time; plots and readouts follow the selected mission time.</li>
-            <li>Playback stops automatically at mission end.</li>
-            <li>Assumption changes (temperature, initial SOC, reserve floor, load factor) rebuild the demo profile and reset to t = 0. They apply to demo profiles only.</li>
-            <li>Reserve margin is carried as the SOC floor (default 20 %); shown as reserve energy in the KPIs.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="notice" id="methodNotice">
-        This page is a <b>static browser dashboard</b> (GitHub Pages-compatible). Mission profiles are <b>demo mission profiles</b>
-        and pack quantities are <b>browser-side pack estimates</b> — not high-fidelity Simscape simulation. For exact Simscape
-        results, run <code>matlab/Aircraft_Mission.m</code> and drop the exported <code>results/mission_&lt;type&gt;.csv</code> files next to the other result artifacts.
-      </div>
-    </section>
+        <div class="tele-grid" id="teleGrid"></div>
+      </section>
 
-    <div class="footer">Built from repository artifacts: <code>results/Capacity_vs_T.csv</code>, <code>results/OCV_2D_SOCxT.csv</code>, and the phase definitions in <code>matlab/Aircraft_Mission.m</code> · static build · Plotly CDN.</div>
+      <section class="plots-grid">
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Pack voltage</h2><p class="chart-desc">Pack voltage from the Simscape Battery Equivalent Circuit replay (dual LUT + hysteresis, daessc solver).</p></div><span class="chip" id="chipV">Simscape</span></div>
+          <div id="plotV" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Pack current</h2><p class="chart-desc">Simscape pack current, plotted discharge-positive (export sign: negative = discharge).</p></div><span class="chip" id="chipI">A</span></div>
+          <div id="plotI" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Pack power demand</h2><p class="chart-desc">Demand power along the mission profile from <code>matlab/Aircraft_Mission.m</code>; phase-colored background.</p></div><span class="chip" id="chipP">kW</span></div>
+          <div id="plotP" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>State of charge</h2><p class="chart-desc">SOC from the Simscape simulation (per-temperature pack capacity); the 20 % design floor is overlaid.</p></div><span class="chip" id="chipSOC">%</span></div>
+          <div id="plotSOC" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Altitude</h2><p class="chart-desc">Trajectory assumption from <code>matlab/Aircraft_Mission.m</code> (ft on right axis).</p></div><span class="chip" id="chipAlt">m / ft</span></div>
+          <div id="plotAlt" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Range / distance</h2><p class="chart-desc">Range integrated from the ground-speed trajectory assumption.</p></div><span class="chip" id="chipRange">km</span></div>
+          <div id="plotRange" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>C-rate</h2><p class="chart-desc">|I| / pack capacity, as exported. 2C limit ≈ 280 A.</p></div><span class="chip" id="chipC">C</span></div>
+          <div id="plotC" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Energy</h2><p class="chart-desc">Energy delivered to the load vs energy remaining in the pack (nominal-voltage reference, as exported).</p></div><span class="chip" id="chipE">kWh</span></div>
+          <div id="plotE" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Aircraft speed</h2><p class="chart-desc">Ground-speed trajectory assumption from <code>matlab/Aircraft_Mission.m</code>.</p></div><span class="chip" id="chipVelo">m/s</span></div>
+          <div id="plotVelo" class="plot"></div>
+        </div>
+        <div class="chart-panel panel">
+          <div class="chart-title"><div><h2>Mission phase timeline</h2><p class="chart-desc">Phase durations along the mission. Cursor follows playback.</p></div><span class="chip">phases</span></div>
+          <div id="plotPhase" class="plot"></div>
+        </div>
+      </section>
+
+      <section class="phase-table-panel panel">
+        <h2>Mission phases</h2>
+        <div style="overflow-x:auto;">
+          <table class="phase-table" id="phaseTable">
+            <thead>
+              <tr>
+                <th>Phase</th><th>Start</th><th>End</th><th>Duration</th>
+                <th>Mean P [kW]</th><th>Peak P [kW]</th><th>Altitude change [m]</th>
+                <th>Range [km]</th><th>Energy [kWh]</th><th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="phaseTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="assumptions panel">
+        <h2>Assumptions &amp; method</h2>
+        <div class="assumptions-grid">
+          <div class="assump-block">
+            <h3>Data source — Simscape export replay</h3>
+            <ul>
+              <li>Every battery quantity on this page is replayed as-is from the Simscape mission exports
+                  <code>results/mission_x57.csv</code> / <code>results/mission_evtol.csv</code>, generated by
+                  <code>matlab/Aircraft_Mission.m</code>.</li>
+              <li>The script simulates the scripted 192S4P pack — <code>step4_BatteryModel.slx</code> with
+                  <code>results/Simscape_BatteryPackParams.mat</code> — using the Simscape <b>Battery Equivalent
+                  Circuit</b> block: dual charge/discharge 2-RC lookup tables plus one-state hysteresis,
+                  per-temperature pack capacity, variable-step <code>daessc</code> solver.</li>
+              <li>Missions run at 25 °C from 100 % initial SOC; <code>V_pack</code> is the true simulated terminal
+                  voltage including RC and hysteresis dynamics.</li>
+              <li>No battery quantity is recomputed in the browser — the CSV columns drive the plots, KPIs and
+                  telemetry directly.</li>
+            </ul>
+          </div>
+          <div class="assump-block">
+            <h3>Mission profiles (matlab/Aircraft_Mission.m)</h3>
+            <ul>
+              <li><b>X-57 Maxwell</b> — phase powers <code>[34.0, 187.8, 189.3, 156.8, 141.6, 31.4] kW</code> with
+                  durations <code>[300, 30, 15, 446, 417, 293] s</code> (NASA X-57 Maxwell, Chin et al. 2020,
+                  Table 1); pack current = P × 1000 / 750 V.</li>
+              <li><b>eVTOL / UAM</b> — pack currents <code>[−14, −56, −280, −200, −112, −28, −14] A</code> with
+                  durations <code>[300, 180, 60, 180, 720, 180, 180] s</code>; a synthetic 2C hover-takeoff stress
+                  profile (as noted in the script header).</li>
+            </ul>
+          </div>
+          <div class="assump-block">
+            <h3>Pack scaling (step5_BuildPackParams.m)</h3>
+            <ul>
+              <li>192 cells series × 4 strings parallel → <b>192S4P</b>.</li>
+              <li>Cell: ≈ 35 Ah, 3.65 V nominal, 2.75–4.20 V window.</li>
+              <li>Pack: ≈ 140 Ah, ≈ 700.8 V, ≈ 98.1 kWh.</li>
+              <li>Voltage ×Ns, resistance ×Ns/Np, capacity ×Np, time constants invariant.</li>
+              <li>2C current limit ≈ 2 × 140 A ≈ 280 A pack (as in <code>Aircraft_Mission.m</code>).</li>
+            </ul>
+          </div>
+          <div class="assump-block">
+            <h3>Trajectory assumptions (alt / speed / range)</h3>
+            <ul>
+              <li>Altitude and ground speed are trajectory segment end-values (<code>altSegEnd</code>,
+                  <code>vSegEnd</code>) defined in <code>matlab/Aircraft_Mission.m</code>
+                  (X-57: 8,000 ft cruise at ≈ 88 m/s; eVTOL: ≈ 300 m cruise at ≈ 60 m/s).</li>
+              <li>Range is the time integral of that ground speed.</li>
+              <li>This caveat concerns the flight trajectory only — all battery quantities are the Simscape
+                  simulation results.</li>
+            </ul>
+          </div>
+          <div class="assump-block">
+            <h3>Playback &amp; controls</h3>
+            <ul>
+              <li><code>requestAnimationFrame</code> playback loop; the speed factor (1×–100×) applies to dynamic
+                  playback only.</li>
+              <li>Timeline slider can be dragged at any time; plots and readouts follow the selected mission time.</li>
+              <li>Playback stops automatically at mission end.</li>
+              <li>The reserve-energy KPI uses the 20 % SOC design floor from <code>matlab/Aircraft_Mission.m</code>.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="notice" id="methodNotice">
+          This dashboard replays the <b>exact Simscape mission exports</b> <code>results/mission_x57.csv</code> /
+          <code>results/mission_evtol.csv</code> produced by <code>matlab/Aircraft_Mission.m</code> for the scripted
+          192S4P pack (Battery Equivalent Circuit block, dual-LUT 2-RC model with one-state hysteresis,
+          <code>daessc</code> solver). Battery quantities — pack voltage, current, SOC, C-rate and energy — are
+          simulation results replayed as-is. Altitude, ground speed and range are trajectory assumptions from the
+          same script (<code>altSegEnd</code> / <code>vSegEnd</code>).
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">Replays the Simscape mission exports <code>results/mission_x57.csv</code> / <code>results/mission_evtol.csv</code> generated by <code>matlab/Aircraft_Mission.m</code> · static build · Plotly CDN.</div>
   </div>
 
 <script>
@@ -583,57 +638,50 @@
     Ns: 192, Np: 4,
     cellAh: 35, cellVnom: 3.65,
     packAhNom: 140, packVnom: 700.8, packKWh: 98.1,
-    Vconv: 750,                       // MATLAB conversion voltage used by Aircraft_Mission.m
     cRateLimit: 2
   };
 
-  // ============================================================
-  //  Demo mission definitions (phase data from matlab/Aircraft_Mission.m)
-  //  alt [m], v [m/s] are DEMO assumptions.
-  // ============================================================
-  const MISSION_DEFS = {
+  // Design limit used by matlab/Aircraft_Mission.m (SOC floor 20 %).
+  const RESERVE_FLOOR_PCT = 20;
+
+  // Phase colors / notes for the missions scripted in matlab/Aircraft_Mission.m.
+  // Phase names not listed here fall back to CSV_PALETTE / a generic note.
+  const PHASE_COLORS = {
+    Taxi: '#94a3b8', MotorCheck: '#a78bfa', TakeOff: '#f59e0b', Climb: '#38bdf8',
+    Cruise: '#22c55e', Descent: '#f472b6', Idle: '#64748b', Landing: '#fb7185'
+  };
+  const PHASE_NOTES = {
     x57: {
-      key: 'x57',
-      name: 'X-57 Maxwell',
-      phases: [
-        { name: 'Taxi',       dur: 300, P: 34.0,  alt0: 0,    alt1: 0,    v0: 0,  v1: 0,  color: '#94a3b8', note: 'Ground taxi at low power' },
-        { name: 'MotorCheck', dur: 30,  P: 187.8, alt0: 0,    alt1: 0,    v0: 0,  v1: 0,  color: '#a78bfa', note: 'Full-power propulsion motor check' },
-        { name: 'TakeOff',    dur: 15,  P: 189.3, alt0: 0,    alt1: 152,  v0: 0,  v1: 25, color: '#f59e0b', note: 'Liftoff, initial climb to ≈500 ft' },
-        { name: 'Climb',      dur: 446, P: 156.8, alt0: 152,  alt1: 2438, v0: 25, v1: 60, color: '#38bdf8', note: 'Climb to 8,000 ft cruise altitude' },
-        { name: 'Cruise',     dur: 417, P: 141.6, alt0: 2438, alt1: 2438, v0: 88, v1: 88, color: '#22c55e', note: 'Level cruise ≈172 kt' },
-        { name: 'Descent',    dur: 293, P: 31.4,  alt0: 2438, alt1: 15,   v0: 88, v1: 55, color: '#f472b6', note: 'Powered descent to touchdown' }
-      ]
+      Taxi: 'Ground taxi at low power',
+      MotorCheck: 'Full-power propulsion motor check',
+      TakeOff: 'Liftoff, initial climb to ≈500 ft',
+      Climb: 'Climb to 8,000 ft cruise altitude',
+      Cruise: 'Level cruise ≈172 kt',
+      Descent: 'Powered descent to touchdown'
     },
     evtol: {
-      key: 'evtol',
-      name: 'eVTOL / UAM',
-      phases: [
-        { name: 'Idle',     dur: 300, P: 10.5,  alt0: 0,   alt1: 0,   v0: 0, v1: 0,   color: '#64748b', note: 'Pre-flight idle (≈14 A)' },
-        { name: 'Taxi',     dur: 180, P: 42.0,  alt0: 0,   alt1: 0,   v0: 0, v1: 2,   color: '#94a3b8', note: 'Ground taxi (≈56 A)' },
-        { name: 'TakeOff',  dur: 60,  P: 210.0, alt0: 0,   alt1: 15,  v0: 0, v1: 0.5, color: '#f59e0b', note: 'Hover takeoff — 2C peak (≈280 A)' },
-        { name: 'Climb',    dur: 180, P: 150.0, alt0: 15,  alt1: 300, v0: 1, v1: 50,  color: '#38bdf8', note: 'Vertical-to-forward transition climb' },
-        { name: 'Cruise',   dur: 720, P: 84.0,  alt0: 300, alt1: 300, v0: 60, v1: 60, color: '#22c55e', note: 'Forward cruise ≈60 m/s (≈117 kt)' },
-        { name: 'Descent',  dur: 180, P: 21.0,  alt0: 300, alt1: 30,  v0: 50, v1: 15, color: '#a78bfa', note: 'Powered descent' },
-        { name: 'Landing',  dur: 180, P: 10.5,  alt0: 30,  alt1: 0,   v0: 5, v1: 0,   color: '#fb7185', note: 'Hover landing (≈14 A)' }
-      ]
+      Idle: 'Pre-flight idle (≈14 A)',
+      Taxi: 'Ground taxi (≈56 A)',
+      TakeOff: 'Hover takeoff — 2C peak (≈280 A)',
+      Climb: 'Vertical-to-forward transition climb',
+      Cruise: 'Forward cruise ≈60 m/s (≈117 kt)',
+      Descent: 'Powered descent',
+      Landing: 'Hover landing (≈14 A)'
     }
   };
-
-  const FALLBACK_OCV = [
-    [0.00, 2.9285], [0.05, 3.1777], [0.10, 3.2719], [0.20, 3.4095], [0.30, 3.5367],
-    [0.40, 3.6421], [0.50, 3.7606], [0.60, 3.8593], [0.70, 3.9325], [0.80, 4.0673],
-    [0.90, 4.0853], [0.95, 4.1010], [1.00, 4.1694]
-  ];
-  const FALLBACK_CAP = [[15, 33.8961], [25, 34.9443], [45, 35.2611]];
-  const R0_TABLE = [[15, 2.9e-3], [25, 2.2e-3], [45, 1.75e-3]];   // Ω per cell, representative LUT values
   const CSV_PALETTE = ['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa', '#f472b6', '#fb7185', '#22d3ee', '#94a3b8', '#4ade80', '#c084fc'];
+
+  // Exact column contract of the matlab/Aircraft_Mission.m export.
+  const REQUIRED_COLUMNS = ['t_s', 'phase', 'P_demand_kW', 'V_pack', 'I_pack', 'SOC_pct',
+    'E_consumed_kWh', 'alt_m', 'range_km', 'v_mps', 'C_rate', 'E_remaining_kWh'];
+
+  const MISSION_NAMES = { x57: 'X-57 Maxwell', evtol: 'eVTOL / UAM' };
 
   // ============================================================
   //  State
   // ============================================================
   const state = {
-    assets: { capacity: null, ocv: null },
-    profile: null,            // current mission profile (arrays at 1 s)
+    profile: null,            // current mission profile (arrays from the CSV export)
     stats: null,              // per-phase statistics
     mission: 'x57',
     t: 0,
@@ -642,7 +690,8 @@
     raf: null,
     lastTs: 0,
     lastCursor: 0,
-    plotShapes: {}            // base shapes (phase bands) per plot id
+    plotShapes: {},           // base shapes (phase bands) per plot id
+    cache: {}                 // per-mission CSV load result (profile or error)
   };
 
   const PLOT_IDS = ['plotV', 'plotI', 'plotP', 'plotSOC', 'plotAlt', 'plotRange', 'plotC', 'plotE', 'plotVelo', 'plotPhase'];
@@ -650,7 +699,6 @@
   const BANDED_PLOTS = { plotP: 1, plotSOC: 1, plotAlt: 1 };
 
   const $ = (id) => document.getElementById(id);
-  const lerp = (a, b, t) => a + (b - a) * t;
   const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
   function fmt(x, d = 1) {
@@ -674,7 +722,7 @@
   function clearError() { $('errorBox').style.display = 'none'; $('errorBox').textContent = ''; }
 
   // ============================================================
-  //  CSV / fetch helpers (same parser family as dashboard/index.html)
+  //  CSV helpers (same parser family as dashboard/index.html)
   // ============================================================
   function parseCSV(text) {
     text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -710,190 +758,57 @@
     return await res.text();
   }
 
-  function interp1(x, xp, fp) {
-    if (!xp || !fp || xp.length === 0) return NaN;
-    if (x <= xp[0]) return fp[0];
-    const n = xp.length;
-    if (x >= xp[n - 1]) return fp[n - 1];
-    let i = 0;
-    while (i < n - 2 && xp[i + 1] < x) i++;
-    const w = (x - xp[i]) / (xp[i + 1] - xp[i]);
-    return fp[i] * (1 - w) + fp[i + 1] * w;
-  }
-
-  function parseCapacity(text) {
-    const { headers, rows } = parseCSV(text);
-    const tH = headers.find(h => /T/i.test(h)) || headers[0];
-    const qH = headers.find(h => /Q|capacity|Ah/i.test(h)) || headers[1];
-    const points = rows.map(r => ({ T: Number(r[tH]), Q: Number(r[qH]) }))
-      .filter(p => Number.isFinite(p.T) && Number.isFinite(p.Q)).sort((a, b) => a.T - b.T);
-    if (points.length === 0) throw new Error('Capacity_vs_T.csv did not contain numeric T/Q columns.');
-    return points;
-  }
-
-  function parseOcv(text) {
-    const { headers, rows } = parseCSV(text);
-    const socH = headers.find(h => /^soc/i.test(h)) || headers[0];
-    const socGrid = rows.map(r => Number(r[socH]));
-    const temps = [];
-    const curves = {};
-    for (const h of headers) {
-      const m = h.match(/OCVavg_V_(-?\d+(?:\.\d+)?)C$/i);
-      if (!m) continue;
-      const T = Number(m[1]);
-      temps.push(T);
-      curves[T] = rows.map(r => Number(r[h]));
-    }
-    temps.sort((a, b) => a - b);
-    if (temps.length === 0) throw new Error('OCV_2D_SOCxT.csv did not contain OCVavg_V_<T>C columns.');
-    return { socGrid, temps, curves };
-  }
-
   // ============================================================
-  //  Model lookups (with robust fallbacks)
+  //  Simscape mission export loader (results/mission_<key>.csv)
+  //  Returns { profile } on success or { error: 'missing' | 'invalid', ... }.
   // ============================================================
-  function capacityAt(T) {
-    const pts = state.assets.capacity || FALLBACK_CAP;
-    if (T <= pts[0].T) return pts[0].Q;
-    if (T >= pts[pts.length - 1].T) return pts[pts.length - 1].Q;
-    for (let i = 0; i < pts.length - 1; i++) {
-      if (T >= pts[i].T && T <= pts[i + 1].T) {
-        const w = (T - pts[i].T) / (pts[i + 1].T - pts[i].T);
-        return pts[i].Q * (1 - w) + pts[i + 1].Q * w;
-      }
-    }
-    return pts[0].Q;
-  }
-
-  function ocvAt(soc, T) {
-    const o = state.assets.ocv;
-    if (!o) return interp1(clamp(soc, 0, 1), FALLBACK_OCV.map(p => p[0]), FALLBACK_OCV.map(p => p[1]));
-    const s = clamp(soc, 0, 1);
-    const { socGrid, temps, curves } = o;
-    const vT = (Ti) => interp1(s, socGrid, curves[Ti]);
-    if (T <= temps[0]) return vT(temps[0]);
-    if (T >= temps[temps.length - 1]) return vT(temps[temps.length - 1]);
-    for (let i = 0; i < temps.length - 1; i++) {
-      if (T >= temps[i] && T <= temps[i + 1]) {
-        const w = (T - temps[i]) / (temps[i + 1] - temps[i]);
-        return vT(temps[i]) * (1 - w) + vT(temps[i + 1]) * w;
-      }
-    }
-    return vT(temps[0]);
-  }
-
-  function r0At(T) {
-    if (T <= R0_TABLE[0][0]) return R0_TABLE[0][1];
-    if (T >= R0_TABLE[R0_TABLE.length - 1][0]) return R0_TABLE[R0_TABLE.length - 1][1];
-    for (let i = 0; i < R0_TABLE.length - 1; i++) {
-      if (T >= R0_TABLE[i][0] && T <= R0_TABLE[i + 1][0]) {
-        const w = (T - R0_TABLE[i][0]) / (R0_TABLE[i + 1][0] - R0_TABLE[i][0]);
-        return R0_TABLE[i][1] * (1 - w) + R0_TABLE[i + 1][1] * w;
-      }
-    }
-    return R0_TABLE[0][1];
-  }
-
-  // ============================================================
-  //  Profile generation (demo) — browser-side pack estimate
-  // ============================================================
-  function computeProfile(def, opts) {
-    const { T, soc0, load } = opts;
-    const Qpack = capacityAt(T) * PACK.Np;
-    const R0 = r0At(T);
-    const t = [], phase = [], P = [], alt = [], v = [];
-    let ti = 0;
-    for (const ph of def.phases) {
-      for (let j = 0; j < ph.dur; j++) {
-        const tt = ph.dur > 1 ? j / (ph.dur - 1) : 0;
-        t.push(ti); phase.push(ph.name);
-        P.push(ph.P * load);
-        alt.push(lerp(ph.alt0, ph.alt1, tt));
-        v.push(lerp(ph.v0, ph.v1, tt));
-        ti++;
-      }
-    }
-    const last = def.phases[def.phases.length - 1];
-    t.push(ti); phase.push(last.name); P.push(last.P * load); alt.push(last.alt1); v.push(last.v1);
-    const n = t.length, tEnd = ti;
-
-    const I = new Array(n), V = new Array(n), soc = new Array(n), E = new Array(n),
-          C = new Array(n), Erem = new Array(n), range = new Array(n);
-    let s = clamp(soc0, 0, 1);
-    for (let i = 0; i < n; i++) {
-      const Ip = P[i] * 1000 / PACK.Vconv;          // pack current [A] (discharge positive)
-      I[i] = Ip;
-      s = Math.max(0, s - Ip / 3600 / Qpack);
-      soc[i] = s;
-      const ocv = ocvAt(s, T);
-      const vcell = ocv - R0 * (Ip / PACK.Np);
-      V[i] = vcell * PACK.Ns;
-      C[i] = Ip / Qpack;
-    }
-    E[0] = 0; range[0] = 0;
-    for (let i = 1; i < n; i++) {
-      E[i] = E[i - 1] + (P[i] + P[i - 1]) / 2 / 3600;          // kWh delivered
-      range[i] = range[i - 1] + (v[i] + v[i - 1]) / 2 / 1000;  // km
-    }
-    for (let i = 0; i < n; i++) Erem[i] = soc[i] * Qpack * PACK.packVnom / 1000;
-
-    return { key: def.key, def, T, soc0, load, Qpack, R0, t, tEnd, phase, P, I, V, soc, E, C, Erem, alt, v, range, source: 'demo' };
-  }
-
-  // ============================================================
-  //  Optional MATLAB-exported CSV profile (results/mission_<key>.csv)
-  // ============================================================
-  async function tryLoadCsvProfile(key) {
+  async function loadCsvProfile(key) {
+    const path = `../results/mission_${key}.csv`;
     let text;
-    try { text = await fetchText(`../results/mission_${key}.csv`); }
-    catch (e) { return null; }
+    try { text = await fetchText(path); }
+    catch (e) { return { error: 'missing', path }; }
     try {
       const { rows } = parseCSV(text);
-      if (!rows.length) return null;
+      if (!rows.length) return { error: 'invalid', path, detail: 'the file has no data rows' };
       const h = Object.keys(rows[0]);
       const col = (name) => h.find(x => x.trim().toLowerCase() === name.toLowerCase());
-      const req = ['t_s', 'phase', 'P_demand_kW', 'V_pack', 'I_pack', 'SOC_pct', 'E_consumed_kWh', 'alt_m', 'range_km', 'v_mps', 'C_rate', 'E_remaining_kWh'];
-      for (const c of req) if (!col(c)) return null;
+      const missingCols = REQUIRED_COLUMNS.filter(c => !col(c));
+      if (missingCols.length) {
+        return { error: 'invalid', path, detail: `missing required column(s): ${missingCols.join(', ')}` };
+      }
       const num = (c) => rows.map(r => Number(r[col(c)]));
       const t = num('t_s'), P = num('P_demand_kW'), V = num('V_pack'),
             socPct = num('SOC_pct'), E = num('E_consumed_kWh'),
             alt = num('alt_m'), range = num('range_km'), v = num('v_mps'),
             C = num('C_rate'), Erem = num('E_remaining_kWh'),
             phase = rows.map(r => String(r[col('phase')]).trim());
-      if (t.length < 10 || t.some(x => !Number.isFinite(x)) || P.some(x => !Number.isFinite(x))) return null;
-      for (let i = 1; i < t.length; i++) if (t[i] < t[i - 1]) return null;
+      if (t.length < 10) return { error: 'invalid', path, detail: 'fewer than 10 samples' };
+      if (t.some(x => !Number.isFinite(x))) return { error: 'invalid', path, detail: 'non-numeric t_s values' };
+      if (P.some(x => !Number.isFinite(x))) return { error: 'invalid', path, detail: 'non-numeric P_demand_kW values' };
+      if (V.some(x => !Number.isFinite(x))) return { error: 'invalid', path, detail: 'non-numeric V_pack values' };
+      for (let i = 1; i < t.length; i++) {
+        if (t[i] < t[i - 1]) return { error: 'invalid', path, detail: 't_s is not monotonically increasing' };
+      }
       const I = num('I_pack').map(x => Math.abs(x));          // display discharge-positive
       const soc = socPct.map(x => clamp(x / 100, 0, 1));
       return {
-        key, def: MISSION_DEFS[key],
-        T: null, soc0: soc[0], load: 1, Qpack: null, R0: null,
-        t, tEnd: t[t.length - 1], phase, P, I, V, soc, E, C, Erem, alt, v, range,
-        source: 'csv'
+        profile: {
+          key, t, tEnd: t[t.length - 1], phase, P, I, V, soc, E, C, Erem, alt, v, range,
+          source: 'simscape'
+        }
       };
     } catch (e) {
-      return null;
+      return { error: 'invalid', path, detail: String((e && e.message) || e) };
     }
   }
 
   // ============================================================
-  //  Phase statistics (generic over demo and CSV profiles)
+  //  Phase statistics (computed from the exported columns)
   // ============================================================
   function computePhaseStats(p) {
-    const def = p.def, palette = CSV_PALETTE;
-    const colorFor = (nm, idx) => {
-      if (def && def.phases) {
-        const f = def.phases.find(ph => ph.name === nm);
-        if (f) return f.color;
-      }
-      return palette[idx % palette.length];
-    };
-    const noteFor = (nm) => {
-      if (def && def.phases) {
-        const f = def.phases.find(ph => ph.name === nm);
-        if (f) return f.note;
-      }
-      return p.source === 'csv' ? 'from MATLAB export' : '';
-    };
+    const notes = PHASE_NOTES[p.key] || {};
+    const colorFor = (nm, idx) => PHASE_COLORS[nm] || CSV_PALETTE[idx % CSV_PALETTE.length];
+    const noteFor = (nm) => notes[nm] || 'from the Simscape export';
     const stats = [];
     let cur = null;
     const close = () => {
@@ -995,14 +910,14 @@
     });
 
     const plots = [
-      { id: 'plotV', x: th, data: [trace(th, p.V, '#38bdf8', 'Pack voltage (estimate)')], lay: plotlyLayout('', 'Pack voltage [V]') },
+      { id: 'plotV', x: th, data: [trace(th, p.V, '#38bdf8', 'Pack voltage (Simscape)')], lay: plotlyLayout('', 'Pack voltage [V]') },
       { id: 'plotI', x: th, data: [trace(th, p.I, '#f59e0b', 'Pack current (discharge)')], lay: plotlyLayout('', 'Pack current [A]') },
       { id: 'plotP', x: th, data: [trace(th, p.P, '#fb7185', 'Power demand')], lay: plotlyLayout('', 'Pack power [kW]') },
       {
         id: 'plotSOC', x: th,
         data: [
           trace(th, p.soc.map(s => s * 100), '#a3e635', 'SOC'),
-          trace(th, th.map(() => reserveFloorPct()), '#f43f5e', 'Reserve floor', 'dot')
+          trace(th, th.map(() => RESERVE_FLOOR_PCT), '#f43f5e', 'Reserve floor (20 % design limit)', 'dot')
         ],
         lay: plotlyLayout('', 'SOC [%]')
       },
@@ -1067,28 +982,22 @@
   // ============================================================
   //  HTML rendering (KPIs, telemetry, phase table, visuals)
   // ============================================================
-  function reserveFloorPct() { return clamp(Number($('reserveSoc').value) || 0, 0, 50); }
-
   function renderKPIs(p, stats) {
-    const reserveFloor = reserveFloorPct() / 100;
-    let reserveKWh;
-    if (p.source === 'csv') {
-      const sEnd = p.soc[p.soc.length - 1];
-      reserveKWh = sEnd > 0 ? p.Erem[p.Erem.length - 1] * Math.max(0, sEnd - reserveFloor) / sEnd : 0;
-    } else {
-      reserveKWh = Math.max(0, p.soc[p.soc.length - 1] - reserveFloor) * p.Qpack * PACK.packVnom / 1000;
-    }
-    const pkI = Math.max(...p.I), pkP = Math.max(...p.P), mnV = Math.min(...p.V);
+    const reserveFloor = RESERVE_FLOOR_PCT / 100;
+    const sEnd = p.soc[p.soc.length - 1];
+    const reserveKWh = sEnd > 0 ? p.Erem[p.Erem.length - 1] * Math.max(0, sEnd - reserveFloor) / sEnd : 0;
+    const pkI = Math.max(...p.I), pkP = Math.max(...p.P), pkC = Math.max(...p.C), mnV = Math.min(...p.V);
+    const rangeEnd = p.range[p.range.length - 1], EEnd = p.E[p.E.length - 1];
     const kpis = [
       ['Mission duration', fmtHMS(p.tEnd), `${(p.tEnd / 60).toFixed(1)} min`],
-      ['Range', `${fmt(p.range[p.range.length - 1])} km`, `${(p.range[p.range.length - 1] * 0.539957).toFixed(1)} nmi`],
-      ['Start SOC', `${(p.soc[0] * 100).toFixed(1)} %`, `initial`],
-      ['Final SOC', `${(p.soc[p.soc.length - 1] * 100).toFixed(1)} %`, `${(p.soc[0] * 100 - p.soc[p.soc.length - 1] * 100).toFixed(1)} pt used`],
-      ['Energy consumed', `${fmt(p.E[p.E.length - 1], 1)} kWh`, `delivered to load`],
-      ['Peak power', `${fmt(pkP, 1)} kW`, `${fmt(pkI / (p.Qpack || PACK.packAhNom), 2)} C peak`],
-      ['Peak current', `${fmt(pkI, 0)} A`, `2C limit ≈ ${fmt(PACK.cRateLimit * (p.Qpack || PACK.packAhNom), 0)} A`],
-      ['Min pack voltage', `${fmt(mnV, 1)} V`, `R0 estimate`],
-      ['Reserve energy', `${fmt(reserveKWh, 1)} kWh`, `SOC floor ${reserveFloorPct()} %`]
+      ['Range', `${fmt(rangeEnd)} km`, `${(rangeEnd * 0.539957).toFixed(1)} nmi`],
+      ['Start SOC', `${(p.soc[0] * 100).toFixed(1)} %`, 'from the Simscape export'],
+      ['Final SOC', `${(sEnd * 100).toFixed(1)} %`, `${(p.soc[0] * 100 - sEnd * 100).toFixed(1)} pt used`],
+      ['Energy consumed', `${fmt(EEnd, 1)} kWh`, 'delivered to load'],
+      ['Peak power', `${fmt(pkP, 1)} kW`, `${fmt(pkC, 2)} C peak`],
+      ['Peak current', `${fmt(pkI, 0)} A`, `2C limit ≈ ${fmt(PACK.cRateLimit * PACK.packAhNom, 0)} A`],
+      ['Min pack voltage', `${fmt(mnV, 1)} V`, 'Simscape terminal voltage'],
+      ['Reserve energy', `${fmt(reserveKWh, 1)} kWh`, `SOC floor ${RESERVE_FLOOR_PCT} % (design limit)`]
     ];
     $('kpis').innerHTML = kpis.map(([l, v, s]) =>
       `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
@@ -1101,7 +1010,7 @@
       ['Time', 'time'], ['Phase', 'phase', 'phase'], ['Altitude', 'alt'], ['Range', 'range'],
       ['Pack voltage', 'V', 'hot'], ['Pack current', 'I'], ['Pack power', 'P', 'hot'],
       ['SOC', 'soc', 'soc'], ['Energy consumed', 'E'], ['C-rate', 'C'],
-      ['Energy remaining', 'Erem'], ['Pack T (assumed)', 'T']
+      ['Energy remaining', 'Erem'], ['Mission temperature', 'T']
     ];
     $('teleGrid').innerHTML = cards.map(([label, key, cls]) =>
       `<div class="tele-card ${cls || ''}"><div class="label">${label}</div><div class="value" id="tel_${key}">—</div></div>`).join('');
@@ -1112,19 +1021,19 @@
     if (!p) return;
     const v = (k) => sampleAt(p, k, t);
     const V = v('V'), I = v('I'), P = v('P'), soc = v('soc'), E = v('E'),
-          alt = v('alt'), range = v('range'), C = v('C'), Erem = v('Erem'), vsp = v('v');
+          alt = v('alt'), range = v('range'), C = v('C'), Erem = v('Erem');
     setTel('time', fmtHMS(t), '');
     setTel('phase', phaseAt(p, t), '');
     setTel('alt', `${fmt(alt, 0)} m`, `${fmt(alt * 3.28084, 0)} ft`);
     setTel('range', `${fmt(range, 1)} km`, `${fmt(range * 0.539957, 1)} nmi`);
     setTel('V', `${fmt(V, 1)} V`, `${fmt(V / PACK.Ns, 3)} V/cell`);
-    setTel('I', `${fmt(I, 0)} A`, `${fmt(I / PACK.Np, 1)} A/cell · ${fmt(I / (p.Qpack || PACK.packAhNom), 2)} C`);
+    setTel('I', `${fmt(I, 0)} A`, `${fmt(I / PACK.Np, 1)} A/cell · ${fmt(C, 2)} C`);
     setTel('P', `${fmt(P, 1)} kW`, `${fmt(P * 1.34102, 1)} hp`);
     setTel('soc', `${(soc * 100).toFixed(1)} %`, `${fmt(Erem, 1)} kWh left`);
     setTel('E', `${fmt(E, 1)} kWh`, `${(E / (p.E[p.E.length - 1] || 1) * 100).toFixed(1)} % of mission`);
     setTel('C', `${fmt(C, 2)} C`, '');
-    setTel('Erem', `${fmt(Erem, 1)} kWh`, `${(soc * 100).toFixed(1)} % of nominal`);
-    setTel('T', p.source === 'csv' ? '—' : `${fmt(p.T ?? 25, 1)} °C`, p.source === 'csv' ? 'not in export' : 'assumed constant');
+    setTel('Erem', `${fmt(Erem, 1)} kWh`, `${(soc * 100).toFixed(1)} % SOC`);
+    setTel('T', '25 °C', 'fixed in Aircraft_Mission.m (T_C)');
     $('phaseStateChip').textContent = `Phase: ${phaseAt(p, t)} · ${fmtHMS(t)} / ${fmtHMS(p.tEnd)}`;
   }
   function setTel(key, main, sub) {
@@ -1201,58 +1110,47 @@
   }
 
   // ============================================================
-  //  Mission load / rebuild
+  //  Empty state (missing / invalid Simscape export)
   // ============================================================
-  function assumptionOpts() {
-    return {
-      T: clamp(Number($('ambientT').value) || 25, -20, 60),
-      soc0: clamp((Number($('initSoc').value) || 100) / 100, 0, 1),
-      reserve: clamp((Number($('reserveSoc').value) || 20) / 100, 0, 0.5),
-      load: clamp(Number($('loadFactor').value) || 1, 0.5, 1.3)
-    };
+  function setPlaybackEnabled(enabled) {
+    ['playBtn', 'heroPlayBtn', 'resetBtn', 'heroResetBtn'].forEach(id => { $(id).disabled = !enabled; });
+    $('timeline').disabled = !enabled;
+    $('timeline').style.opacity = enabled ? 1 : 0.45;
   }
 
+  function showEmptyState(key, res) {
+    state.profile = null;
+    state.stats = null;
+    stopPlayback();
+    $('missionContent').classList.add('hidden');
+    $('emptyState').classList.remove('hidden');
+    const file = `results/mission_${key}.csv`;
+    $('emptyType').textContent = key;
+    $('emptyFile').textContent = file;
+    $('emptyMsg').innerHTML = res.error === 'missing'
+      ? `<code>${file}</code> was not found. This dashboard replays the exact Simscape mission exports from <code>matlab/Aircraft_Mission.m</code> — it never substitutes synthetic mission data. Generate the export with the steps below, then reload this page.`
+      : `<code>${file}</code> was found but could not be used (${res.detail}). The dashboard requires the exact Simscape export column contract shown below — regenerate the file with <code>matlab/Aircraft_Mission.m</code>.`;
+    const srcChip = $('sourceChip');
+    srcChip.textContent = res.error === 'missing' ? 'export missing' : 'export unusable';
+    srcChip.classList.add('warn'); srcChip.classList.remove('ok');
+    $('methodChip').textContent = 'run matlab/Aircraft_Mission.m';
+    $('statusLine').innerHTML = res.error === 'missing'
+      ? `<strong>Simscape mission export missing</strong> for the ${MISSION_NAMES[key]} mission — see the instructions below to generate <code>${file}</code>.`
+      : `<strong>Simscape mission export unusable</strong> for the ${MISSION_NAMES[key]} mission — see the instructions below to regenerate <code>${file}</code>.`;
+    const slider = $('timeline');
+    slider.min = 0; slider.max = 0; slider.value = 0;
+    $('timeReadout').textContent = '00:00 / 00:00';
+    setPlaybackEnabled(false);
+    syncPlayUI();
+  }
+
+  // ============================================================
+  //  Mission load
+  // ============================================================
   async function loadMission(key) {
     clearError();
     state.mission = key;
     stopPlayback();
-
-    let profile = null;
-    let csvTried = false;
-    try {
-      profile = await tryLoadCsvProfile(key);
-      csvTried = true;
-    } catch (e) { profile = null; }
-
-    if (profile) {
-      // Exact MATLAB export: fixed profile, assumption controls do not apply.
-      setAssumptionsEnabled(false);
-    } else {
-      const o = assumptionOpts();
-      profile = computeProfile(MISSION_DEFS[key], o);
-      setAssumptionsEnabled(true);
-    }
-
-    state.profile = profile;
-    state.stats = computePhaseStats(profile);
-    state.t = 0;
-
-    // chips
-    const srcChip = $('sourceChip');
-    if (profile.source === 'csv') {
-      srcChip.textContent = 'MATLAB-exported profile (exact)';
-      srcChip.classList.remove('warn'); srcChip.classList.add('ok');
-      $('methodChip').textContent = 'Simscape-pack export replay';
-      $('methodNotice').innerHTML = 'This page is a <b>static browser dashboard</b> (GitHub Pages-compatible). The active profile was exported by <code>matlab/Aircraft_Mission.m</code> (<code>results/mission_' + key + '.csv</code>) and is replayed here as-is. Assumption controls are disabled for exported profiles; use the built-in demo profiles to vary temperature, initial SOC, reserve floor or load factor.';
-      $('statusLine').innerHTML = `<strong>Loaded MATLAB-exported mission profile</strong> (${profile.t.length.toLocaleString()} samples, ${fmtHMS(profile.tEnd)}). Assumption controls disabled — the exported profile is fixed.`;
-    } else {
-      srcChip.textContent = 'demo mission profile';
-      srcChip.classList.add('warn'); srcChip.classList.remove('ok');
-      $('methodChip').textContent = 'browser-side pack estimate';
-      $('methodNotice').innerHTML = 'This page is a <b>static browser dashboard</b> (GitHub Pages-compatible). Mission profiles are <b>demo mission profiles</b> and pack quantities are <b>browser-side pack estimates</b> — not high-fidelity Simscape simulation. For exact Simscape results, run <code>matlab/Aircraft_Mission.m</code> and drop the exported <code>results/mission_&lt;type&gt;.csv</code> files next to the other result artifacts.';
-      const o = assumptionOpts();
-      $('statusLine').innerHTML = `<strong>${profile.def.name} demo mission ready.</strong> ${profile.t.length.toLocaleString()} samples · ${fmtHMS(profile.tEnd)} · Q_pack ${fmt(profile.Qpack, 1)} Ah @ ${fmt(profile.T, 1)} °C · R0 ${fmt(profile.R0 * 1000, 2)} mΩ/cell.`;
-    }
 
     // aircraft card selection
     $('cardX57').classList.toggle('active', key === 'x57');
@@ -1261,11 +1159,31 @@
     $('cardEvtol').setAttribute('aria-pressed', key === 'evtol');
     $('missionSelect').value = key;
 
+    if (!state.cache[key]) state.cache[key] = await loadCsvProfile(key);
+    const res = state.cache[key];
+    if (!res.profile) { showEmptyState(key, res); return; }
+
+    $('emptyState').classList.add('hidden');
+    $('missionContent').classList.remove('hidden');
+
+    const profile = res.profile;
+    state.profile = profile;
+    state.stats = computePhaseStats(profile);
+    state.t = 0;
+
+    // chips + status line (values straight from the export)
+    const srcChip = $('sourceChip');
+    srcChip.textContent = 'Simscape-pack export replay';
+    srcChip.classList.add('ok'); srcChip.classList.remove('warn');
+    $('methodChip').textContent = 'dual-LUT 2-RC + hysteresis · daessc';
+    const vMin = Math.min(...profile.V), vMax = Math.max(...profile.V);
+    $('statusLine').innerHTML = `<strong>Loaded Simscape mission export</strong> — <code>results/mission_${key}.csv</code> · ${profile.t.length.toLocaleString()} samples · ${fmtHMS(profile.tEnd)} · pack voltage ${fmt(vMin, 1)}–${fmt(vMax, 1)} V.`;
+
     // timeline
     const slider = $('timeline');
     slider.min = 0; slider.max = profile.tEnd; slider.value = 0;
 
-    // render everything
+    setPlaybackEnabled(true);
     renderKPIs(profile, state.stats);
     renderTelemetryGrid();
     renderPhaseTable(state.stats);
@@ -1273,13 +1191,6 @@
     if (window.Plotly) renderPlots(profile);
     updateTime(0, { force: true });
     syncPlayUI();
-  }
-
-  function setAssumptionsEnabled(enabled) {
-    ['ambientT', 'initSoc', 'reserveSoc', 'loadFactor'].forEach(id => {
-      $(id).disabled = !enabled;
-      $(id).style.opacity = enabled ? 1 : 0.45;
-    });
   }
 
   // ============================================================
@@ -1305,6 +1216,7 @@
     const dt = Math.min(Math.max((ts - state.lastTs) / 1000, 0), 0.5);   // clamp long gaps
     state.lastTs = ts;
     const p = state.profile;
+    if (!p) return;
     let t = state.t + dt * state.speed;
     if (t >= p.tEnd) {
       t = p.tEnd;
@@ -1373,34 +1285,13 @@
     });
   });
 
-  ['ambientT', 'initSoc', 'reserveSoc', 'loadFactor'].forEach(id => {
-    $(id).addEventListener('change', () => {
-      if (state.profile && state.profile.source === 'demo') loadMission(state.mission);
-    });
-  });
-
   // ============================================================
-  //  Boot: load model assets then the initial mission
+  //  Boot: load the initial mission from its Simscape export
   // ============================================================
-  async function loadAssets() {
-    try {
-      const [cap, ocv] = await Promise.all([
-        fetchText('../results/Capacity_vs_T.csv'),
-        fetchText('../results/OCV_2D_SOCxT.csv')
-      ]);
-      state.assets.capacity = parseCapacity(cap);
-      state.assets.ocv = parseOcv(ocv);
-    } catch (err) {
-      // Robust fallbacks are embedded; proceed with demo profile.
-      console.warn('Asset load failed, using built-in fallbacks:', err.message || err);
-    }
-  }
-
   (async function boot() {
     if (!window.Plotly) {
       showError('Plotly CDN did not load. Check internet access or vendor Plotly locally.');
     }
-    await loadAssets();
     await loadMission('x57');
   })();
 })();
